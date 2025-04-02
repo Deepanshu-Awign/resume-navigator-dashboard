@@ -1,10 +1,10 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { GoogleSheetData, ResumeProfile } from "@/types";
 
 // Constants
 const SHEET_ID = "1ERZMPrh3siXBYUYPgu62Z3ULpjqlTdDrD4P1xWzVMRk";
-const SHEET_RANGE = "Sheet1!A2:F";
-const SHEETS_API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_RANGE}?key=AIzaSyBmNVkCGVw-baSV9lJnY64QPbNQ6sCnZxE`; // Public read-only key
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
 
 // Supabase setup
 // Check if Supabase environment variables are set
@@ -47,26 +47,47 @@ export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : createFallbackClient();
 
-// Function to fetch data from Google Sheets - This is now the primary data source
+// Function to fetch data directly from Google Sheets as CSV
 export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<ResumeProfile[]> => {
   try {
-    const response = await fetch(SHEETS_API_URL);
-    const data: GoogleSheetData = await response.json();
+    console.log("Fetching profiles from Google Sheets for jobId:", jobId);
+    const response = await fetch(SHEET_URL);
     
-    if (!data.values) {
-      console.error("No data returned from Google Sheets");
+    if (!response.ok) {
+      console.error("Error fetching Google Sheet:", response.status, response.statusText);
       return [];
     }
+    
+    const csvData = await response.text();
+    console.log("CSV data received:", csvData.substring(0, 100) + "..."); // Log first 100 chars for debugging
+    
+    // Parse CSV manually
+    const rows = csvData.split('\n');
+    // Skip header row
+    const dataRows = rows.slice(1);
+    
+    const profiles: ResumeProfile[] = dataRows.map(row => {
+      // Handle quotes in CSV
+      const cleanRow = row.replace(/"([^"]*)"/g, (match, content) => {
+        // Replace commas inside quotes with a temporary placeholder
+        return content.replace(/,/g, '###COMMA###');
+      });
+      
+      const columns = cleanRow.split(',');
+      // Restore any commas that were inside quotes
+      const processedColumns = columns.map(col => col.replace(/###COMMA###/g, ','));
+      
+      return {
+        id: crypto.randomUUID(), // Generate a unique ID for each profile
+        jobId: processedColumns[0]?.trim() || "",
+        name: processedColumns[1]?.trim() || "",
+        email: processedColumns[2]?.trim() || "",
+        status: (processedColumns[3]?.trim() as "New" | "Shortlisted" | "Rejected") || "New",
+        pdfUrl: processedColumns[4]?.trim() || ""
+      };
+    }).filter(profile => profile.jobId === jobId);
 
-    const profiles: ResumeProfile[] = data.values.map(row => ({
-      id: crypto.randomUUID(), // Generate a unique ID for each profile
-      jobId: row[0] || "",
-      name: row[1] || "",
-      email: row[2] || "",
-      status: (row[3] as "New" | "Shortlisted" | "Rejected") || "New",
-      pdfUrl: row[4] || ""
-    })).filter(profile => profile.jobId === jobId);
-
+    console.log("Filtered profiles:", profiles.length);
     return profiles;
   } catch (error) {
     console.error("Error fetching profiles from Google Sheets:", error);

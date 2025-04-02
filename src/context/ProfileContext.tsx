@@ -98,8 +98,9 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     
     setLoading(true);
     try {
-      // Changed from fetchProfilesFromSupabase to fetchProfilesFromGoogleSheets
+      console.log("Fetching profiles for jobId:", jobId);
       const data = await fetchProfilesFromGoogleSheets(jobId);
+      console.log("Fetched profiles:", data);
       setProfiles(data);
       // Save jobId to localStorage
       localStorage.setItem("jobId", jobId);
