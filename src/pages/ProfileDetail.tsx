@@ -102,6 +102,12 @@ const ProfileDetail = () => {
         
         if (hasMoreProfiles) {
           goToNextProfile();
+          // Update URL to reflect new profile
+          if (filteredProfiles[currentProfileIndex + 1]) {
+            navigate(`/profile/${filteredProfiles[currentProfileIndex + 1].id}`, { 
+              state: { profile: filteredProfiles[currentProfileIndex + 1] } 
+            });
+          }
         } else {
           toast({
             description: "No more resumes in this category.",
@@ -121,6 +127,28 @@ const ProfileDetail = () => {
     } finally {
       setLoading(false);
       setConfirmAction(null);
+    }
+  };
+
+  const handleNextProfile = () => {
+    if (hasMoreProfiles) {
+      goToNextProfile();
+      // Navigate to the next profile with updated state
+      const nextProfile = filteredProfiles[currentProfileIndex + 1];
+      if (nextProfile) {
+        navigate(`/profile/${nextProfile.id}`, { state: { profile: nextProfile } });
+      }
+    }
+  };
+
+  const handlePreviousProfile = () => {
+    if (hasPreviousProfiles) {
+      goToPreviousProfile();
+      // Navigate to the previous profile with updated state
+      const prevProfile = filteredProfiles[currentProfileIndex - 1];
+      if (prevProfile) {
+        navigate(`/profile/${prevProfile.id}`, { state: { profile: prevProfile } });
+      }
     }
   };
 
@@ -171,7 +199,7 @@ const ProfileDetail = () => {
             
             <div className="flex justify-between">
               <Button
-                onClick={goToPreviousProfile}
+                onClick={handlePreviousProfile}
                 variant="outline"
                 disabled={!hasPreviousProfiles || loading}
                 className="w-[48%]"
@@ -179,7 +207,7 @@ const ProfileDetail = () => {
                 <ChevronLeft className="mr-1" /> Previous
               </Button>
               <Button
-                onClick={goToNextProfile}
+                onClick={handleNextProfile}
                 variant="outline"
                 disabled={!hasMoreProfiles || loading}
                 className="w-[48%]"
