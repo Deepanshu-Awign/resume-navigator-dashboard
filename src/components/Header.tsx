@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 
@@ -47,24 +47,22 @@ const Header = ({ title, showBackButton = false, backTo }: HeaderProps) => {
 
         {/* Desktop menu */}
         <div className="hidden md:flex items-center space-x-4">
-          <Link to="/" className="text-gray-700 hover:text-brand-600">
-            Home
-          </Link>
-          <Link to="/dashboard" className="text-gray-700 hover:text-brand-600">
-            Dashboard
-          </Link>
           {user ? (
             <>
+              <Link to="/dashboard" className="text-gray-700 hover:text-brand-600">
+                Dashboard
+              </Link>
               <Link to="/admin/dashboard" className="text-gray-700 hover:text-brand-600">
                 Admin
               </Link>
               <Button variant="outline" onClick={() => logout()}>
-                Sign Out
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
               </Button>
             </>
           ) : (
-            <Link to="/admin" className="text-gray-700 hover:text-brand-600">
-              Admin Login
+            <Link to="/" className="text-gray-700 hover:text-brand-600">
+              Home
             </Link>
           )}
         </div>
@@ -82,26 +80,17 @@ const Header = ({ title, showBackButton = false, backTo }: HeaderProps) => {
       {mobileMenuOpen && (
         <nav className="md:hidden bg-white p-4 border-t border-gray-200">
           <ul className="space-y-4">
-            <li>
-              <Link
-                to="/"
-                className="block py-2 text-gray-700 hover:text-brand-600"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/dashboard"
-                className="block py-2 text-gray-700 hover:text-brand-600"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
-            </li>
             {user ? (
               <>
+                <li>
+                  <Link
+                    to="/dashboard"
+                    className="block py-2 text-gray-700 hover:text-brand-600"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                </li>
                 <li>
                   <Link
                     to="/admin/dashboard"
@@ -114,24 +103,25 @@ const Header = ({ title, showBackButton = false, backTo }: HeaderProps) => {
                 <li>
                   <Button
                     variant="outline"
-                    className="w-full"
+                    className="w-full flex items-center justify-center"
                     onClick={() => {
                       logout();
                       setMobileMenuOpen(false);
                     }}
                   >
-                    Sign Out
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
                   </Button>
                 </li>
               </>
             ) : (
               <li>
                 <Link
-                  to="/admin"
+                  to="/"
                   className="block py-2 text-gray-700 hover:text-brand-600"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Admin Login
+                  Home
                 </Link>
               </li>
             )}
