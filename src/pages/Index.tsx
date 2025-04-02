@@ -8,10 +8,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
-  const { setJobId, fetchProfiles } = useProfiles();
+  const navigate = useNavigate();
   const [jobIdInput, setJobIdInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  
+  // Get context functions safely
+  const profileContext = useProfiles();
+  const { setJobId, fetchProfiles } = profileContext;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
