@@ -24,15 +24,22 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Use a direct PDF embed for better rendering
+  // Convert Google Doc URLs to PDF if needed
+  const pdfUrl = url.includes('docs.google.com/document') 
+    ? url.replace('/edit?usp=sharing', '/export?format=pdf')
+    : url;
+
   return (
     <div ref={containerRef} className="w-full h-full">
-      <iframe 
-        src={`https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`}
-        className="w-full h-full border-0"
-        title="PDF Viewer"
-        frameBorder="0"
-      />
+      <object
+        data={pdfUrl}
+        type="application/pdf"
+        className="w-full h-full"
+      >
+        <p>Your browser does not support PDFs. 
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer">Click here to download the PDF</a>
+        </p>
+      </object>
     </div>
   );
 };

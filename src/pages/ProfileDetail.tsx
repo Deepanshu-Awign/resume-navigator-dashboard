@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { PDFObject } from "@/components/PDFObject";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const ProfileDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,9 +56,17 @@ const ProfileDetail = () => {
   const downloadResume = () => {
     if (!profile?.pdfUrl) return;
     
+    // Convert Google Doc URL to PDF export URL if needed
+    let downloadUrl = profile.pdfUrl;
+    if (downloadUrl.includes('docs.google.com/document')) {
+      downloadUrl = downloadUrl.replace('/edit?usp=sharing', '/export?format=pdf');
+    }
+    
+    // Create a temporary anchor element to trigger the download
     const link = document.createElement('a');
-    link.href = profile.pdfUrl;
+    link.href = downloadUrl;
     link.download = `${profile.name}_resume.pdf`;
+    link.target = "_blank"; // Open in new tab as fallback
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
