@@ -44,18 +44,19 @@ const ProfileDetail = () => {
   }, [jobId, profile, navigate, activeCategory]);
 
   const handleAction = async (action: "shortlist" | "reject") => {
-    if (!profile || !profile.id) return;
+    if (!profile || !profile.email) return;
     
     setConfirmAction(action);
   };
 
   const handleConfirmAction = async () => {
-    if (!profile || !profile.id || !confirmAction) return;
+    if (!profile || !profile.email || !confirmAction) return;
     
     setLoading(true);
     try {
       const status = confirmAction === "shortlist" ? "Shortlisted" : "Rejected";
-      const success = await updateProfileStatus(profile.id, status);
+      // Change from using profile.id to profile.email for Google Sheets
+      const success = await updateProfileStatus(profile.email, status);
       
       if (success) {
         updateProfileStatusLocally(profile.id, status);
@@ -96,10 +97,6 @@ const ProfileDetail = () => {
       setLoading(false);
       setConfirmAction(null);
     }
-  };
-
-  const handleBack = () => {
-    navigate(`/dashboard`);
   };
 
   if (!profile) {

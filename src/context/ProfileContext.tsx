@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { ResumeProfile, JobStats } from "@/types";
-import { fetchProfilesFromSupabase } from "@/services/api";
+import { fetchProfilesFromGoogleSheets } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
 
 interface ProfileContextType {
@@ -98,7 +98,8 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     
     setLoading(true);
     try {
-      const data = await fetchProfilesFromSupabase(jobId);
+      // Changed from fetchProfilesFromSupabase to fetchProfilesFromGoogleSheets
+      const data = await fetchProfilesFromGoogleSheets(jobId);
       setProfiles(data);
       // Save jobId to localStorage
       localStorage.setItem("jobId", jobId);

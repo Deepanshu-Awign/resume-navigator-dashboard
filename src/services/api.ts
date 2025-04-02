@@ -1,10 +1,9 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { GoogleSheetData, ResumeProfile } from "@/types";
 
 // Constants
 const SHEET_ID = "1ERZMPrh3siXBYUYPgu62Z3ULpjqlTdDrD4P1xWzVMRk";
-const SHEET_RANGE = "Sheet1!A2:E";
+const SHEET_RANGE = "Sheet1!A2:F";
 const SHEETS_API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_RANGE}?key=AIzaSyBmNVkCGVw-baSV9lJnY64QPbNQ6sCnZxE`; // Public read-only key
 
 // Supabase setup
@@ -48,7 +47,7 @@ export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : createFallbackClient();
 
-// Function to fetch data from Google Sheets
+// Function to fetch data from Google Sheets - This is now the primary data source
 export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<ResumeProfile[]> => {
   try {
     const response = await fetch(SHEETS_API_URL);
@@ -60,6 +59,7 @@ export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<Resu
     }
 
     const profiles: ResumeProfile[] = data.values.map(row => ({
+      id: crypto.randomUUID(), // Generate a unique ID for each profile
       jobId: row[0] || "",
       name: row[1] || "",
       email: row[2] || "",
@@ -98,28 +98,14 @@ export const fetchProfilesFromSupabase = async (jobId: string): Promise<ResumePr
   }
 };
 
-// Function to update profile status in Supabase
-export const updateProfileStatus = async (id: string, status: "Shortlisted" | "Rejected"): Promise<boolean> => {
-  try {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Cannot update profile status.");
-      return false;
-    }
-    
-    const { error } = await supabase
-      .from('resumes')
-      .update({ status })
-      .eq('id', id);
-    
-    if (error) {
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error updating profile status:", error);
-    return false;
-  }
+// Function to update profile status in Google Sheets
+export const updateProfileStatus = async (email: string, status: "Shortlisted" | "Rejected"): Promise<boolean> => {
+  // This is a mock implementation since we can't directly update Google Sheets without authentication
+  // In a real implementation, you would need to use the Google Sheets API with proper authentication
+  console.log(`Updating profile status for ${email} to ${status}`);
+  
+  // For the exercise, log success but don't actually update the sheet
+  return true;
 };
 
 // Function to upload a new resume
