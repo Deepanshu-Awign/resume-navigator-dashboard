@@ -78,6 +78,12 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const goToPreviousProfile = () => {
     if (hasPreviousProfiles) {
       setCurrentProfileIndex(prevIndex => prevIndex - 1);
+    } else {
+      toast({
+        title: "First resume",
+        description: "You're already at the first resume in this category.",
+        variant: "default",
+      });
     }
   };
 

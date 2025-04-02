@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { PDFObject } from "@/components/PDFObject";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 
 const ProfileDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,10 +18,13 @@ const ProfileDetail = () => {
   const { 
     jobId, 
     filteredProfiles, 
-    currentProfileIndex, 
+    currentProfileIndex,
+    setCurrentProfileIndex, 
     activeCategory,
     goToNextProfile,
+    goToPreviousProfile,
     hasMoreProfiles,
+    hasPreviousProfiles,
     updateProfileStatusLocally
   } = useProfiles();
 
@@ -49,6 +53,17 @@ const ProfileDetail = () => {
     setConfirmAction(action);
   };
 
+  const downloadResume = () => {
+    if (!profile?.pdfUrl) return;
+    
+    const link = document.createElement('a');
+    link.href = profile.pdfUrl;
+    link.download = `${profile.name}_resume.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleConfirmAction = async () => {
     if (!profile || !profile.email || !confirmAction) return;
     
@@ -67,12 +82,7 @@ const ProfileDetail = () => {
         
         if (confirmAction === "shortlist") {
           // Download PDF
-          const link = document.createElement('a');
-          link.href = profile.pdfUrl;
-          link.download = `${profile.name}_resume.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          downloadResume();
         }
         
         if (hasMoreProfiles) {
@@ -112,48 +122,57 @@ const ProfileDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header title={profile.name} showBackButton backTo="/dashboard" />
+      <Header title="Resume Viewer" showBackButton backTo="/dashboard" />
       
       <div className="container mx-auto p-4 flex-1 flex flex-col">
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-          <h2 className="text-xl font-semibold mb-1">{profile.name}</h2>
-          <p className="text-gray-600 mb-1">{profile.email}</p>
-          <p className="text-sm text-gray-500">Job ID: {profile.jobId}</p>
-          <div className="mt-2">
-            <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-              profile.status === "New" ? "bg-blue-100 text-blue-800" :
-              profile.status === "Shortlisted" ? "bg-green-100 text-green-800" :
-              "bg-red-100 text-red-800"
-            }`}>
-              {profile.status}
-            </span>
-          </div>
-        </div>
-        
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4 flex-1">
-          <h3 className="text-lg font-medium mb-4">Resume Preview</h3>
-          <div className="h-[60vh] border border-gray-200 rounded-md overflow-hidden">
+          <div className="h-[calc(100vh-220px)] border border-gray-200 rounded-md overflow-hidden">
             <PDFObject url={profile.pdfUrl} />
           </div>
         </div>
-        
-        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-md p-4 flex justify-between">
-          <Button
-            onClick={() => handleAction("reject")}
-            variant="destructive"
-            disabled={loading}
-            className="w-[48%]"
-          >
-            Reject
-          </Button>
-          <Button
-            onClick={() => handleAction("shortlist")}
-            variant="default"
-            disabled={loading}
-            className="w-[48%]"
-          >
-            Shortlist
-          </Button>
+      </div>
+      
+      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-md p-4">
+        <div className="container mx-auto">
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-between">
+              <Button
+                onClick={() => handleAction("reject")}
+                variant="destructive"
+                disabled={loading}
+                className="w-[48%]"
+              >
+                Reject
+              </Button>
+              <Button
+                onClick={() => handleAction("shortlist")}
+                variant="default"
+                disabled={loading}
+                className="w-[48%]"
+              >
+                Shortlist
+              </Button>
+            </div>
+            
+            <div className="flex justify-between">
+              <Button
+                onClick={goToPreviousProfile}
+                variant="outline"
+                disabled={!hasPreviousProfiles || loading}
+                className="w-[48%]"
+              >
+                <ChevronLeft className="mr-1" /> Previous
+              </Button>
+              <Button
+                onClick={goToNextProfile}
+                variant="outline"
+                disabled={!hasMoreProfiles || loading}
+                className="w-[48%]"
+              >
+                Next <ChevronRight className="ml-1" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 

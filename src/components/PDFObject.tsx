@@ -13,13 +13,23 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
     if (containerRef.current) {
       setHeight(containerRef.current.clientHeight);
     }
+
+    const handleResize = () => {
+      if (containerRef.current) {
+        setHeight(containerRef.current.clientHeight);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Use a direct PDF embed for better rendering
   return (
     <div ref={containerRef} className="w-full h-full">
       <iframe 
-        src={`https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`} 
-        className="w-full h-full"
+        src={`https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`}
+        className="w-full h-full border-0"
         title="PDF Viewer"
         frameBorder="0"
       />
