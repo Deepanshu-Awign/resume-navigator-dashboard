@@ -56,20 +56,27 @@ const ProfileDetail = () => {
   const downloadResume = () => {
     if (!profile?.pdfUrl) return;
     
-    // Convert Google Doc URL to PDF export URL if needed
+    // Create proper download URL for Google Docs
     let downloadUrl = profile.pdfUrl;
     if (downloadUrl.includes('docs.google.com/document')) {
-      downloadUrl = downloadUrl.replace('/edit?usp=sharing', '/export?format=pdf');
+      // Replace /edit or /preview with /export?format=pdf
+      downloadUrl = downloadUrl.replace(/\/(edit|preview).*$/, '/export?format=pdf');
     }
+    
+    console.log("Downloading resume from URL:", downloadUrl);
     
     // Create a temporary anchor element to trigger the download
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = `${profile.name}_resume.pdf`;
-    link.target = "_blank"; // Open in new tab as fallback
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    toast({
+      title: "Download started",
+      description: `${profile.name}'s resume is being downloaded.`,
+    });
   };
 
   const handleConfirmAction = async () => {
