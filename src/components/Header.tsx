@@ -62,7 +62,7 @@ const Header = ({ title, showBackButton = false, backTo }: HeaderProps) => {
             </>
           ) : (
             <Link to="/" className="text-gray-700 hover:text-brand-600">
-              Home
+              Logout
             </Link>
           )}
         </div>
