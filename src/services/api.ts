@@ -282,16 +282,31 @@ export const getAllResumes = async (): Promise<ResumeProfile[]> => {
       return mockResumeStorage;
     }
     
-    const result = await supabase
-      .from('resumes')
-      .select('*');
-    
-    // TypeScript fix: properly handle the result type
-    if (result.error) {
-      throw result.error;
+    // For the real Supabase client
+    if ('data' in supabase.from('resumes')) {
+      const { data, error } = await supabase
+        .from('resumes')
+        .select('*');
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data || [];
+    } else {
+      // For the fallback client
+      const result = await supabase
+        .from('resumes')
+        .select('*');
+      
+      // Check if result has the properties we expect
+      if ('error' in result && result.error) {
+        throw result.error;
+      }
+      
+      // Safely return data or empty array
+      return ('data' in result && Array.isArray(result.data)) ? result.data : [];
     }
-    
-    return result.data || [];
   } catch (error) {
     console.error("Error fetching all resumes:", error);
     return [];
