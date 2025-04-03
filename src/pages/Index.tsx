@@ -33,9 +33,26 @@ const Index = () => {
     
     try {
       await fetchProfiles();
-      navigate("/dashboard");
+      
+      // Get profiles and find the first one with "New" status
+      const firstNewProfile = profileContext.profiles.find(profile => profile.status === "New");
+      
+      if (firstNewProfile) {
+        // Navigate directly to the profile view page if we have a "New" status profile
+        navigate(`/profile/${firstNewProfile.id}`, { 
+          state: { profile: firstNewProfile }
+        });
+      } else {
+        // If no "New" profile is found, navigate to the dashboard
+        navigate("/dashboard");
+      }
     } catch (error) {
       console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch profiles. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

@@ -128,7 +128,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [jobId]);
 
-  // Reset profile index when category changes
+  // Reset profile index and update active category when needed
   useEffect(() => {
     resetProfileIndex();
   }, [activeCategory]);
