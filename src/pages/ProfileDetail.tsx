@@ -154,6 +154,10 @@ const ProfileDetail = () => {
     }
   };
 
+  // Determine button states based on profile status
+  const isShortlisted = profile?.status === "Shortlisted";
+  const isRejected = profile?.status === "Rejected";
+
   if (!profile) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -170,6 +174,17 @@ const ProfileDetail = () => {
       <Header title={`Resume: ${profile.name}`} showBackButton backTo="/dashboard" />
       
       <div className="container mx-auto p-4 flex-1 flex flex-col">
+        {profile.status !== "New" && (
+          <div className="mb-2 flex items-center justify-center">
+            <div className={`px-3 py-1.5 rounded-full text-sm font-medium 
+              ${profile.status === "Shortlisted" ? "bg-green-100 text-green-800" : ""}
+              ${profile.status === "Rejected" ? "bg-red-100 text-red-800" : ""}
+            `}>
+              Status: {profile.status}
+            </div>
+          </div>
+        )}
+        
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4 flex-1">
           <div className={`${isMobile ? 'h-[calc(100vh-280px)]' : 'h-[calc(100vh-220px)]'} border border-gray-200 rounded-md overflow-hidden relative`}>
             <PDFObject url={profile.pdfUrl} />
@@ -196,19 +211,19 @@ const ProfileDetail = () => {
             <div className="flex justify-between">
               <Button
                 onClick={() => handleAction("reject")}
-                variant="destructive"
+                variant={isRejected ? "default" : "destructive"}
                 disabled={loading}
-                className="w-[48%]"
+                className={`w-[48%] ${isRejected ? "bg-red-700" : ""}`}
               >
-                Reject
+                {isRejected ? "Already Rejected" : "Reject"}
               </Button>
               <Button
                 onClick={() => handleAction("shortlist")}
-                variant="default"
+                variant={isShortlisted ? "outline" : "default"}
                 disabled={loading}
-                className="w-[48%]"
+                className={`w-[48%] ${isShortlisted ? "border-green-500 text-green-700 bg-green-50" : ""}`}
               >
-                Shortlist
+                {isShortlisted ? "Already Shortlisted" : "Shortlist"}
               </Button>
             </div>
             

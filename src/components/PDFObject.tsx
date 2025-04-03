@@ -14,6 +14,14 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
   const isMobile = useIsMobile();
+  const [key, setKey] = useState(url);
+
+  // Reset loading state when URL changes
+  useEffect(() => {
+    setIsLoading(true);
+    setLoadProgress(0);
+    setKey(url); // Change key to force iframe remount
+  }, [url]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -43,7 +51,7 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
       window.removeEventListener('resize', handleResize);
       clearInterval(interval);
     };
-  }, []);
+  }, [url]); // Rerun effect when URL changes
 
   // Process the URL for proper embedding
   let pdfUrl = url;
@@ -85,15 +93,15 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
       )}
       
       <iframe 
+        key={key} // Add key to force iframe to remount when URL changes
         src={pdfUrl}
-        className={`w-full h-full border-0 ${isMobile ? 'scale-100' : ''}`}
+        className="w-full h-full border-0"
         title="PDF Viewer"
         frameBorder="0"
         allowFullScreen
         onLoad={handleIframeLoad}
         style={{ 
           minHeight: isMobile ? 'calc(100vh - 220px)' : '100%',
-          transform: isMobile ? 'scale(1)' : 'none',
           transformOrigin: 'top left' 
         }}
       />
