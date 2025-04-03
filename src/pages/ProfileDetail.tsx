@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { PDFObject } from "@/components/PDFObject";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ProfileDetail = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   const { 
     jobId, 
@@ -165,19 +167,32 @@ const ProfileDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header title="Resume Viewer" showBackButton backTo="/dashboard" />
+      <Header title={`Resume: ${profile.name}`} showBackButton backTo="/dashboard" />
       
       <div className="container mx-auto p-4 flex-1 flex flex-col">
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4 flex-1">
-          <div className="h-[calc(100vh-220px)] border border-gray-200 rounded-md overflow-hidden">
+          <div className={`${isMobile ? 'h-[calc(100vh-280px)]' : 'h-[calc(100vh-220px)]'} border border-gray-200 rounded-md overflow-hidden relative`}>
             <PDFObject url={profile.pdfUrl} />
           </div>
         </div>
+
+        {isMobile && (
+          <div className="mb-16">
+            <Button 
+              onClick={downloadResume}
+              variant="outline" 
+              className="w-full mb-4" 
+              disabled={loading}
+            >
+              <Download className="mr-2 h-4 w-4" /> Download Resume
+            </Button>
+          </div>
+        )}
       </div>
       
-      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-md p-4">
+      <div className={`fixed bottom-0 left-0 right-0 bg-white shadow-md ${isMobile ? 'p-3 pb-6' : 'p-4'}`}>
         <div className="container mx-auto">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             <div className="flex justify-between">
               <Button
                 onClick={() => handleAction("reject")}
