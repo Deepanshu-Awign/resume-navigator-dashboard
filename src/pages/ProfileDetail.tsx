@@ -101,19 +101,23 @@ const ProfileDetail = () => {
           downloadResume();
         }
         
-        if (hasMoreProfiles) {
-          goToNextProfile();
-          // Update URL to reflect new profile
-          if (filteredProfiles[currentProfileIndex + 1]) {
-            navigate(`/profile/${filteredProfiles[currentProfileIndex + 1].id}`, { 
-              state: { profile: filteredProfiles[currentProfileIndex + 1] } 
-            });
-          }
+        // Find next new profile
+        const newProfiles = filteredProfiles.filter(p => p.status === "New");
+        const currentNewIndex = newProfiles.findIndex(p => p.id === profile.id);
+        
+        if (currentNewIndex < newProfiles.length - 1) {
+          // There's another new profile after this one
+          const nextNewProfile = newProfiles[currentNewIndex + 1];
+          const nextIndexInFiltered = filteredProfiles.findIndex(p => p.id === nextNewProfile.id);
+          
+          setCurrentProfileIndex(nextIndexInFiltered);
+          navigate(`/profile/${nextNewProfile.id}`, { state: { profile: nextNewProfile } });
         } else {
+          // No more new profiles
           toast({
-            description: "No more resumes in this category.",
+            description: "No more new resumes available.",
           });
-          navigate(`/profiles/${activeCategory}`);
+          navigate(`/profiles/new`);
         }
       } else {
         throw new Error("Failed to update status");
@@ -132,30 +136,42 @@ const ProfileDetail = () => {
   };
 
   const handleNextProfile = () => {
-    if (hasMoreProfiles) {
-      goToNextProfile();
-      // Navigate to the next profile with updated state
-      const nextProfile = filteredProfiles[currentProfileIndex + 1];
-      if (nextProfile) {
-        navigate(`/profile/${nextProfile.id}`, { state: { profile: nextProfile } });
-      }
+    // Only navigate to profiles with "New" status
+    const newProfiles = filteredProfiles.filter(p => p.status === "New");
+    const currentNewIndex = newProfiles.findIndex(p => p.id === profile.id);
+    
+    if (currentNewIndex < newProfiles.length - 1) {
+      const nextNewProfile = newProfiles[currentNewIndex + 1];
+      const nextIndexInFiltered = filteredProfiles.findIndex(p => p.id === nextNewProfile.id);
+      
+      setCurrentProfileIndex(nextIndexInFiltered);
+      navigate(`/profile/${nextNewProfile.id}`, { state: { profile: nextNewProfile } });
     }
   };
 
   const handlePreviousProfile = () => {
-    if (hasPreviousProfiles) {
-      goToPreviousProfile();
-      // Navigate to the previous profile with updated state
-      const prevProfile = filteredProfiles[currentProfileIndex - 1];
-      if (prevProfile) {
-        navigate(`/profile/${prevProfile.id}`, { state: { profile: prevProfile } });
-      }
+    // Only navigate to profiles with "New" status
+    const newProfiles = filteredProfiles.filter(p => p.status === "New");
+    const currentNewIndex = newProfiles.findIndex(p => p.id === profile.id);
+    
+    if (currentNewIndex > 0) {
+      const prevNewProfile = newProfiles[currentNewIndex - 1];
+      const prevIndexInFiltered = filteredProfiles.findIndex(p => p.id === prevNewProfile.id);
+      
+      setCurrentProfileIndex(prevIndexInFiltered);
+      navigate(`/profile/${prevNewProfile.id}`, { state: { profile: prevNewProfile } });
     }
   };
 
-  // Determine button states based on profile status
+  // Determine button states based on profile status and availability of new profiles
   const isShortlisted = profile?.status === "Shortlisted";
   const isRejected = profile?.status === "Rejected";
+  
+  // Check if there are more new profiles
+  const newProfiles = filteredProfiles.filter(p => p.status === "New");
+  const currentNewIndex = profile ? newProfiles.findIndex(p => p.id === profile.id) : -1;
+  const hasMoreNewProfiles = currentNewIndex < newProfiles.length - 1;
+  const hasPreviousNewProfiles = currentNewIndex > 0;
 
   if (!profile) {
     return (
@@ -226,23 +242,31 @@ const ProfileDetail = () => {
               </Button>
             </div>
             
-            <div className="flex justify-between">
-              <Button
-                onClick={handlePreviousProfile}
-                variant="outline"
-                disabled={!hasPreviousProfiles || loading}
-                className="w-[48%]"
-              >
-                <ChevronLeft className="mr-1" /> Previous
-              </Button>
-              <Button
-                onClick={handleNextProfile}
-                variant="outline"
-                disabled={!hasMoreProfiles || loading}
-                className="w-[48%]"
-              >
-                Next <ChevronRight className="ml-1" />
-              </Button>
+            <div className="flex flex-col">
+              <div className="flex justify-between">
+                <Button
+                  onClick={handlePreviousProfile}
+                  variant="outline"
+                  disabled={!hasPreviousNewProfiles || loading}
+                  className="w-[48%]"
+                >
+                  <ChevronLeft className="mr-1" /> Previous
+                </Button>
+                <Button
+                  onClick={handleNextProfile}
+                  variant="outline"
+                  disabled={!hasMoreNewProfiles || loading}
+                  className="w-[48%]"
+                >
+                  Next <ChevronRight className="ml-1" />
+                </Button>
+              </div>
+              
+              {!hasMoreNewProfiles && (
+                <p className="text-center text-sm text-muted-foreground mt-2">
+                  Last profile
+                </p>
+              )}
             </div>
           </div>
         </div>
