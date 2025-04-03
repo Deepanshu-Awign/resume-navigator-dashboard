@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
@@ -33,19 +32,8 @@ const Index = () => {
     
     try {
       await fetchProfiles();
-      
-      // Get profiles and find the first one with "New" status
-      const firstNewProfile = profileContext.profiles.find(profile => profile.status === "New");
-      
-      if (firstNewProfile) {
-        // Navigate directly to the profile view page if we have a "New" status profile
-        navigate(`/profile/${firstNewProfile.id}`, { 
-          state: { profile: firstNewProfile }
-        });
-      } else {
-        // If no "New" profile is found, navigate to the dashboard
-        navigate("/dashboard");
-      }
+      // Redirect to the new profiles view instead of individual profile
+      navigate("/profiles/new");
     } catch (error) {
       console.error("Error:", error);
       toast({

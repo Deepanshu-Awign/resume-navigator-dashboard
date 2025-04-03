@@ -87,7 +87,6 @@ const ProfileDetail = () => {
     setLoading(true);
     try {
       const status = confirmAction === "shortlist" ? "Shortlisted" : "Rejected";
-      // Change from using profile.id to profile.email for Google Sheets
       const success = await updateProfileStatus(profile.email, status);
       
       if (success) {
@@ -211,19 +210,19 @@ const ProfileDetail = () => {
             <div className="flex justify-between">
               <Button
                 onClick={() => handleAction("reject")}
-                variant={isRejected ? "default" : "destructive"}
-                disabled={loading}
-                className={`w-[48%] ${isRejected ? "bg-red-700" : ""}`}
+                variant="destructive"
+                disabled={loading || isRejected}
+                className="w-[48%]"
               >
-                {isRejected ? "Already Rejected" : "Reject"}
+                Reject
               </Button>
               <Button
                 onClick={() => handleAction("shortlist")}
-                variant={isShortlisted ? "outline" : "default"}
-                disabled={loading}
-                className={`w-[48%] ${isShortlisted ? "border-green-500 text-green-700 bg-green-50" : ""}`}
+                variant="default"
+                disabled={loading || isShortlisted}
+                className="w-[48%]"
               >
-                {isShortlisted ? "Already Shortlisted" : "Shortlist"}
+                Shortlist
               </Button>
             </div>
             

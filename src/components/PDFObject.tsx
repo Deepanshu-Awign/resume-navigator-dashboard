@@ -20,7 +20,7 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
   useEffect(() => {
     setIsLoading(true);
     setLoadProgress(0);
-    setKey(url); // Change key to force iframe remount
+    setKey(url); // Force iframe remount
   }, [url]);
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
       )}
       
       <iframe 
-        key={key} // Add key to force iframe to remount when URL changes
+        key={key} 
         src={pdfUrl}
         className="w-full h-full border-0"
         title="PDF Viewer"
@@ -101,8 +101,7 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
         allowFullScreen
         onLoad={handleIframeLoad}
         style={{ 
-          minHeight: isMobile ? 'calc(100vh - 220px)' : '100%',
-          transformOrigin: 'top left' 
+          minHeight: isMobile ? 'calc(100vh - 220px)' : '100%'
         }}
       />
     </div>
