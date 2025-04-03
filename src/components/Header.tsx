@@ -49,12 +49,12 @@ const Header = ({ title, showBackButton = false, backTo }: HeaderProps) => {
         <div className="hidden md:flex items-center space-x-4">
           {user ? (
             <>
-              <Link to="/dashboard" className="text-gray-700 hover:text-brand-600">
+              { /* <Link to="/dashboard" className="text-gray-700 hover:text-brand-600">
                 Dashboard
               </Link>
               <Link to="/admin/dashboard" className="text-gray-700 hover:text-brand-600">
                 Admin
-              </Link>
+              </Link> */}
               <Button variant="outline" onClick={() => logout()}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
