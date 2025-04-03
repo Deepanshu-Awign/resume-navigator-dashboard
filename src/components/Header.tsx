@@ -121,7 +121,7 @@ const Header = ({ title, showBackButton = false, backTo }: HeaderProps) => {
                   className="block py-2 text-gray-700 hover:text-brand-600"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Home
+                  Logout
                 </Link>
               </li>
             )}
