@@ -15,6 +15,9 @@ const MOCK_ADMIN_USER = {
   }
 };
 
+// Mock storage for resumes (since we don't have a real database)
+let mockResumeStorage: ResumeProfile[] = [];
+
 // Supabase setup
 // Check if Supabase environment variables are set
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -142,8 +145,13 @@ export const updateProfileStatus = async (email: string, status: "Shortlisted" |
 export const uploadResume = async (profile: Omit<ResumeProfile, 'id'>): Promise<boolean> => {
   try {
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Cannot upload resume.");
-      return false;
+      console.warn("Supabase not configured. Using mock storage.");
+      const newProfile: ResumeProfile = {
+        ...profile,
+        id: crypto.randomUUID()
+      };
+      mockResumeStorage.push(newProfile);
+      return true;
     }
     
     const { error } = await supabase
@@ -190,6 +198,124 @@ export const uploadPdfFile = async (file: File, jobId: string): Promise<string |
     console.error("Error uploading PDF file:", error);
     return null;
   }
+};
+
+// NEW FUNCTION: Bulk upload resumes from CSV data
+export const bulkUploadResumes = async (
+  csvData: string, 
+  jobId: string
+): Promise<{ success: number; failed: number }> => {
+  try {
+    // Parse CSV data
+    const rows = csvData.split('\n');
+    // Assume the first row is a header
+    const headers = rows[0].split(',');
+    
+    // Get column indices
+    const nameIndex = headers.findIndex(h => h.toLowerCase().includes('name'));
+    const emailIndex = headers.findIndex(h => h.toLowerCase().includes('email'));
+    const pdfUrlIndex = headers.findIndex(h => 
+      h.toLowerCase().includes('pdf') || 
+      h.toLowerCase().includes('url') || 
+      h.toLowerCase().includes('resume')
+    );
+    
+    if (nameIndex === -1 || emailIndex === -1) {
+      throw new Error("CSV must contain 'name' and 'email' columns");
+    }
+    
+    // Process each row (skip header)
+    let successCount = 0;
+    let failedCount = 0;
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue; // Skip empty rows
+      
+      // Handle quoted values in CSV
+      const cleanRow = rows[i].replace(/"([^"]*)"/g, (match, content) => {
+        return content.replace(/,/g, '###COMMA###');
+      });
+      
+      const columns = cleanRow.split(',');
+      const processedColumns = columns.map(col => col.replace(/###COMMA###/g, ',').trim());
+      
+      // Create profile object
+      const profile: Omit<ResumeProfile, 'id'> = {
+        jobId,
+        name: processedColumns[nameIndex] || "",
+        email: processedColumns[emailIndex] || "",
+        status: "New",
+        pdfUrl: processedColumns[pdfUrlIndex] || ""
+      };
+      
+      // Skip if name or email is missing
+      if (!profile.name || !profile.email) {
+        failedCount++;
+        continue;
+      }
+      
+      // Use a placeholder URL if none provided
+      if (!profile.pdfUrl) {
+        profile.pdfUrl = "https://docs.google.com/document/d/placeholder/edit?usp=sharing";
+      }
+      
+      const success = await uploadResume(profile);
+      if (success) {
+        successCount++;
+      } else {
+        failedCount++;
+      }
+    }
+    
+    return { success: successCount, failed: failedCount };
+  } catch (error) {
+    console.error("Error bulk uploading resumes:", error);
+    return { success: 0, failed: 0 };
+  }
+};
+
+// NEW FUNCTION: Get all resumes across all jobs
+export const getAllResumes = async (): Promise<ResumeProfile[]> => {
+  try {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn("Supabase not configured. Using mock storage.");
+      return mockResumeStorage;
+    }
+    
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*');
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching all resumes:", error);
+    return [];
+  }
+};
+
+// Helper function to convert resume profiles to CSV
+export const convertResumesToCsv = (resumes: ResumeProfile[]): string => {
+  // Create CSV header
+  const headers = ["Job ID", "Name", "Email", "Status", "Resume URL"];
+  const csvRows = [headers.join(',')];
+  
+  // Add each resume as a row
+  resumes.forEach(resume => {
+    const values = [
+      resume.jobId,
+      `"${resume.name}"`, // Quote names in case they contain commas
+      resume.email,
+      resume.status,
+      `"${resume.pdfUrl}"` // Quote URLs in case they contain commas
+    ];
+    csvRows.push(values.join(','));
+  });
+  
+  return csvRows.join('\n');
 };
 
 // Authentication functions with mock implementation
