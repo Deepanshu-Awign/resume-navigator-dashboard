@@ -282,15 +282,16 @@ export const getAllResumes = async (): Promise<ResumeProfile[]> => {
       return mockResumeStorage;
     }
     
-    const { data, error } = await supabase
+    const result = await supabase
       .from('resumes')
       .select('*');
     
-    if (error) {
-      throw error;
+    // TypeScript fix: properly handle the result type
+    if (result.error) {
+      throw result.error;
     }
     
-    return data || [];
+    return result.data || [];
   } catch (error) {
     console.error("Error fetching all resumes:", error);
     return [];
