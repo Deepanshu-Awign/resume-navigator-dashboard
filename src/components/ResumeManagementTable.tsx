@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { getAllResumes, convertResumesToCsv } from "@/services/api";
+import { getAllResumes, fetchProfilesFromGoogleSheets, convertResumesToCsv } from "@/services/api";
 import { ResumeProfile } from "@/types";
 import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, RefreshCw, Search, MoreHorizontal, Eye } from "lucide-react";
+import { Download, FileText, RefreshCw, Search, MoreHorizontal, Eye, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -43,8 +43,21 @@ const ResumeManagementTable = ({ refreshTrigger = 0 }: ResumeManagementTableProp
   const fetchResumes = async () => {
     setLoading(true);
     try {
-      const data = await getAllResumes();
-      setResumes(data);
+      // First try to get resumes from Google Sheets (sample data)
+      const googleSheetData = await fetchProfilesFromGoogleSheets("1");
+      
+      // Then try to get resumes from storage/database
+      const dbResumes = await getAllResumes();
+      
+      // Combine both sets of resumes
+      const combinedResumes = [...googleSheetData, ...dbResumes];
+      
+      // Remove duplicates (based on email)
+      const uniqueResumes = combinedResumes.filter((resume, index, self) => 
+        index === self.findIndex(r => r.email === resume.email)
+      );
+      
+      setResumes(uniqueResumes);
     } catch (error) {
       console.error("Error fetching resumes:", error);
       toast({
@@ -91,7 +104,8 @@ const ResumeManagementTable = ({ refreshTrigger = 0 }: ResumeManagementTableProp
   };
 
   const viewResume = (profile: ResumeProfile) => {
-    navigate(`/profile/${profile.id}`, { state: { profile } });
+    // Open PDF in new tab
+    window.open(profile.pdfUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Filter resumes based on search query
@@ -177,37 +191,30 @@ const ResumeManagementTable = ({ refreshTrigger = 0 }: ResumeManagementTableProp
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[60px]">S.No</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Job ID</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead className="w-[100px] text-center">Resume</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredResumes.map((resume) => (
+                {filteredResumes.map((resume, index) => (
                   <TableRow key={resume.id}>
+                    <TableCell className="text-center">{index + 1}</TableCell>
                     <TableCell className="font-medium">{resume.name}</TableCell>
                     <TableCell>{resume.email}</TableCell>
-                    <TableCell>{resume.jobId}</TableCell>
                     <TableCell>{getStatusBadge(resume.status)}</TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => viewResume(resume)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Resume
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => viewResume(resume)}
+                        className="flex items-center mx-auto"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

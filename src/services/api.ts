@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { GoogleSheetData, ResumeProfile } from "@/types";
 
@@ -283,34 +282,22 @@ export const getAllResumes = async (): Promise<ResumeProfile[]> => {
       return mockResumeStorage;
     }
     
-    // Type checking to handle different client implementations
+    // Type-safe approach to handle different client implementations
     try {
-      const { data, error } = await supabase
-        .from('resumes')
-        .select('*');
+      const response = await supabase.from('resumes').select('*');
       
-      if (error) throw error;
-      return data || [];
-    } catch (supabaseError) {
-      // If the above pattern fails, try the alternative approach
-      console.warn("Using alternative query pattern due to client implementation");
-      
-      const result = await supabase
-        .from('resumes')
-        .select('*');
-      
-      // Safety check for the result structure
-      if (typeof result === 'object' && result !== null) {
-        if ('error' in result && result.error) {
-          throw result.error;
-        }
-        
-        if ('data' in result) {
-          return Array.isArray(result.data) ? result.data : [];
-        }
+      // Check if response is a standard Supabase response
+      if ('data' in response && 'error' in response) {
+        if (response.error) throw response.error;
+        return response.data || [];
+      } else {
+        // Alternative approach for the mock client or different implementations
+        const result = await (response as any).eq();
+        if (result?.error) throw result.error;
+        return result?.data || [];
       }
-      
-      // If all else fails, return empty array
+    } catch (error) {
+      console.error("Error in Supabase query:", error);
       return [];
     }
   } catch (error) {
