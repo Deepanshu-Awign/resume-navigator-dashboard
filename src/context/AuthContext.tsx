@@ -30,8 +30,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const checkUser = async () => {
       try {
         const currentUser = await getCurrentUser();
-        setUser(currentUser);
-        setIsAdmin(!!currentUser);
+        if (currentUser) {
+          setUser(currentUser);
+          setIsAdmin(!!currentUser);
+          // Store mock user in sessionStorage for persistence
+          sessionStorage.setItem('mockUser', JSON.stringify(currentUser));
+        }
       } catch (error) {
         console.error("Error checking user:", error);
       } finally {
@@ -47,6 +51,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { user } = await signIn(email, password);
       setUser(user);
       setIsAdmin(true);
+      // Store mock user in sessionStorage for persistence
+      sessionStorage.setItem('mockUser', JSON.stringify(user));
       toast({
         title: "Success",
         description: "Logged in successfully!",
@@ -67,6 +73,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await signOut();
       setUser(null);
       setIsAdmin(false);
+      // Remove mock user from sessionStorage
+      sessionStorage.removeItem('mockUser');
       toast({
         title: "Success",
         description: "Logged out successfully!",

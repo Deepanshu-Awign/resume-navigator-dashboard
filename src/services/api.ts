@@ -1,10 +1,19 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { GoogleSheetData, ResumeProfile } from "@/types";
 
 // Constants
 const SHEET_ID = "1ERZMPrh3siXBYUYPgu62Z3ULpjqlTdDrD4P1xWzVMRk";
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+
+// Mock user for testing purposes
+const MOCK_ADMIN_USER = {
+  id: '123',
+  email: 'admin@example.com',
+  role: 'admin',
+  user_metadata: {
+    name: 'Admin User'
+  }
+};
 
 // Supabase setup
 // Check if Supabase environment variables are set
@@ -183,21 +192,30 @@ export const uploadPdfFile = async (file: File, jobId: string): Promise<string |
   }
 };
 
-// Authentication functions
+// Authentication functions with mock implementation
 export const signIn = async (email: string, password: string) => {
   try {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Cannot sign in.");
-      throw new Error("Supabase is not configured. Please set up your environment variables.");
+    // If Supabase is configured, use it
+    if (supabaseUrl && supabaseAnonKey) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) throw error;
+      return data;
     }
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    // Mock authentication for development/testing
+    if (email === 'admin@example.com' && password === 'password') {
+      console.log('Mock sign in successful');
+      return {
+        user: MOCK_ADMIN_USER,
+        session: { token: 'mock-token' }
+      };
+    }
     
-    if (error) throw error;
-    return data;
+    throw new Error('Invalid email or password');
   } catch (error) {
     console.error("Error signing in:", error);
     throw error;
@@ -206,13 +224,16 @@ export const signIn = async (email: string, password: string) => {
 
 export const signOut = async () => {
   try {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Cannot sign out.");
+    // If Supabase is configured, use it
+    if (supabaseUrl && supabaseAnonKey) {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       return;
     }
     
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    // Mock sign out for development/testing
+    console.log('Mock sign out successful');
+    return;
   } catch (error) {
     console.error("Error signing out:", error);
     throw error;
@@ -221,13 +242,19 @@ export const signOut = async () => {
 
 export const getCurrentUser = async () => {
   try {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Cannot get current user.");
-      return null;
+    // If Supabase is configured, use it
+    if (supabaseUrl && supabaseAnonKey) {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user;
     }
     
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
+    // For development/testing, check if we have a stored user in sessionStorage
+    const storedUser = sessionStorage.getItem('mockUser');
+    if (storedUser) {
+      return JSON.parse(storedUser);
+    }
+    
+    return null;
   } catch (error) {
     console.error("Error getting current user:", error);
     return null;
