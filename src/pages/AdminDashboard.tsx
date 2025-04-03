@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/Header";
 import BulkUploadForm from "@/components/BulkUploadForm";
 import ResumeManagementTable from "@/components/ResumeManagementTable";
-import { FileText, Upload, ListFilter } from "lucide-react";
+import SampleResumes from "@/components/SampleResumes";
+import { FileText, Upload, ListFilter, Database } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { uploadResume, uploadPdfFile } from "@/services/api";
@@ -126,6 +127,10 @@ const AdminDashboard = () => {
               <FileText className="h-4 w-4" />
               <span>Bulk Upload</span>
             </TabsTrigger>
+            <TabsTrigger value="sample-resumes" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              <span>Sample Resumes</span>
+            </TabsTrigger>
             <TabsTrigger value="manage" className="flex items-center gap-2">
               <ListFilter className="h-4 w-4" />
               <span>Manage Resumes</span>
@@ -140,7 +145,6 @@ const AdminDashboard = () => {
                   <CardDescription>Add a new candidate resume to the system</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Keep the original single upload form */}
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="jobId">Job ID</Label>
@@ -266,6 +270,10 @@ const AdminDashboard = () => {
                 </Card>
               </div>
             </div>
+          </TabsContent>
+          
+          <TabsContent value="sample-resumes" className="mt-0">
+            <SampleResumes onImportComplete={handleUploadComplete} />
           </TabsContent>
           
           <TabsContent value="manage" className="mt-0">

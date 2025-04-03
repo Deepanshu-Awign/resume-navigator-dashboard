@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { GoogleSheetData, ResumeProfile } from "@/types";
 
@@ -282,30 +283,35 @@ export const getAllResumes = async (): Promise<ResumeProfile[]> => {
       return mockResumeStorage;
     }
     
-    // For the real Supabase client
-    if ('data' in supabase.from('resumes')) {
+    // Type checking to handle different client implementations
+    try {
       const { data, error } = await supabase
         .from('resumes')
         .select('*');
       
-      if (error) {
-        throw error;
-      }
-      
+      if (error) throw error;
       return data || [];
-    } else {
-      // For the fallback client
+    } catch (supabaseError) {
+      // If the above pattern fails, try the alternative approach
+      console.warn("Using alternative query pattern due to client implementation");
+      
       const result = await supabase
         .from('resumes')
         .select('*');
       
-      // Check if result has the properties we expect
-      if ('error' in result && result.error) {
-        throw result.error;
+      // Safety check for the result structure
+      if (typeof result === 'object' && result !== null) {
+        if ('error' in result && result.error) {
+          throw result.error;
+        }
+        
+        if ('data' in result) {
+          return Array.isArray(result.data) ? result.data : [];
+        }
       }
       
-      // Safely return data or empty array
-      return ('data' in result && Array.isArray(result.data)) ? result.data : [];
+      // If all else fails, return empty array
+      return [];
     }
   } catch (error) {
     console.error("Error fetching all resumes:", error);
