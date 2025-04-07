@@ -14,17 +14,19 @@ const Index = () => {
   
   const [jobIdInput, setJobIdInput] = useState(jobIdFromUrl || "");
   const [loading, setLoading] = useState(false);
+  const [urlProcessed, setUrlProcessed] = useState(false);
   
   // Get context functions safely
   const { setJobId, fetchProfiles, setActiveCategory } = useProfiles();
 
   // Process job ID from URL on component mount
   useEffect(() => {
-    if (jobIdFromUrl) {
+    if (jobIdFromUrl && !urlProcessed) {
       console.log("Found jobId in URL:", jobIdFromUrl);
       processJobId(jobIdFromUrl);
+      setUrlProcessed(true);
     }
-  }, []); // Only run once on mount to prevent infinite loops
+  }, [jobIdFromUrl, urlProcessed]); 
 
   const processJobId = async (id: string) => {
     if (!id.trim()) {
