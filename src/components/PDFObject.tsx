@@ -100,9 +100,7 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
         frameBorder="0"
         allowFullScreen
         onLoad={handleIframeLoad}
-        style={{ 
-          minHeight: isMobile ? 'calc(100vh - 220px)' : '100%'
-        }}
+        style={{ height: '100%' }}
       />
     </div>
   );
