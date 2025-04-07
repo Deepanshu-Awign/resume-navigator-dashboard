@@ -8,7 +8,7 @@ interface ProfileContextType {
   jobId: string;
   setJobId: (id: string) => void;
   profiles: ResumeProfile[];
-  fetchProfiles: () => Promise<void>;
+  fetchProfiles: () => Promise<ResumeProfile[]>;
   loading: boolean;
   stats: JobStats;
   activeCategory: "all" | "new" | "shortlisted" | "rejected";
@@ -100,7 +100,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchProfiles = async () => {
-    if (!jobId) return;
+    if (!jobId) return [];
     
     setLoading(true);
     try {
@@ -110,6 +110,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       setProfiles(data);
       // Save jobId to localStorage
       localStorage.setItem("jobId", jobId);
+      return data;
     } catch (error) {
       console.error("Error fetching profiles:", error);
       toast({
@@ -117,6 +118,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
         description: "Failed to fetch profiles. Please try again.",
         variant: "destructive",
       });
+      return [];
     } finally {
       setLoading(false);
     }

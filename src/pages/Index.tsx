@@ -25,7 +25,7 @@ const Index = () => {
       console.log("Found jobId in URL:", jobIdFromUrl);
       processJobId(jobIdFromUrl);
     }
-  }, []);
+  }, [jobIdFromUrl]);  // Added jobIdFromUrl as a dependency
 
   const processJobId = async (id: string) => {
     if (!id.trim()) {
@@ -41,7 +41,8 @@ const Index = () => {
     setJobId(id.trim());
     
     try {
-      await fetchProfiles();
+      const result = await fetchProfiles();
+      console.log("Profiles fetched:", result);
       
       // Set the active category to "new" by default
       setActiveCategory("new");
@@ -51,12 +52,17 @@ const Index = () => {
       
       if (firstNewProfile) {
         // Navigate directly to the profile view page if we have a "New" status profile
-        navigate(`/profile/${firstNewProfile.id}`, { 
-          state: { profile: firstNewProfile }
-        });
+        navigate(`/profile/${firstNewProfile.id}`);
+      } else if (profileContext.profiles.length > 0) {
+        // Navigate to the first profile if no new profiles found
+        navigate(`/profile/${profileContext.profiles[0].id}`);
       } else {
-        // Navigate to the profiles/new page if no new profiles found
-        navigate("/profiles/new");
+        // No profiles found, show error toast
+        toast({
+          title: "No profiles found",
+          description: "No profiles were found for this Job ID.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error:", error);
