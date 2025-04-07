@@ -22,9 +22,10 @@ const Index = () => {
   // Process job ID from URL on component mount
   useEffect(() => {
     if (jobIdFromUrl) {
+      console.log("Found jobId in URL:", jobIdFromUrl);
       processJobId(jobIdFromUrl);
     }
-  }, [jobIdFromUrl]);
+  }, []);
 
   const processJobId = async (id: string) => {
     if (!id.trim()) {
@@ -54,7 +55,7 @@ const Index = () => {
           state: { profile: firstNewProfile }
         });
       } else {
-        // If no "New" profile is found, navigate to the profiles/new page
+        // Navigate to the profiles/new page if no new profiles found
         navigate("/profiles/new");
       }
     } catch (error) {

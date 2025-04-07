@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
 import { updateProfileStatus } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
@@ -9,7 +9,7 @@ import { Menu, User, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Pagination, 
   PaginationContent, 
@@ -28,8 +28,9 @@ import {
 import { useAuth } from "@/context/AuthContext";
 
 const ProfileViewer = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, category } = useParams<{ id: string; category: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
   const { logout } = useAuth();
   
@@ -38,7 +39,6 @@ const ProfileViewer = () => {
     profiles,
     filteredProfiles, 
     currentProfileIndex,
-    setCurrentProfileIndex, 
     activeCategory,
     setActiveCategory,
     goToNextProfile,
@@ -53,8 +53,29 @@ const ProfileViewer = () => {
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
+  // Handle both profile/:id and profiles/:category routes
+  useEffect(() => {
+    if (!jobId) {
+      navigate("/");
+      return;
+    }
+
+    // If we're on a profiles/:category route
+    if (category && !id) {
+      setActiveCategory(category as "all" | "new" | "shortlisted" | "rejected");
+      
+      // Find first profile in the category and navigate to it
+      const categoryProfiles = getCategoryProfiles(category);
+      if (categoryProfiles.length > 0) {
+        navigate(`/profile/${categoryProfiles[0].id}`);
+      }
+    }
+  }, [jobId, id, category, navigate]);
+  
   // Get current profile or find by ID
-  const profile = profiles.find(p => p.id === id) || filteredProfiles[currentProfileIndex] || null;
+  const profile = id 
+    ? profiles.find(p => p.id === id) 
+    : filteredProfiles[currentProfileIndex] || null;
   
   // Get filtered profiles by tab/category
   const allProfiles = profiles;
@@ -62,37 +83,60 @@ const ProfileViewer = () => {
   const shortlistedProfiles = profiles.filter(p => p.status === "Shortlisted");
   const rejectedProfiles = profiles.filter(p => p.status === "Rejected");
   
-  // Calculate pagination values
-  const categoryProfiles = 
-    activeCategory === "all" ? allProfiles :
-    activeCategory === "new" ? newProfiles : 
-    activeCategory === "shortlisted" ? shortlistedProfiles : 
-    activeCategory === "rejected" ? rejectedProfiles : 
-    profiles;
+  // Helper function to get profiles based on category
+  const getCategoryProfiles = (cat: string | undefined) => {
+    switch (cat) {
+      case "all": return allProfiles;
+      case "new": return newProfiles;
+      case "shortlisted": return shortlistedProfiles;
+      case "rejected": return rejectedProfiles;
+      default: return filteredProfiles;
+    }
+  };
   
-  const currentPage = categoryProfiles.findIndex(p => p.id === id) + 1;
+  // Calculate pagination values
+  const categoryProfiles = getCategoryProfiles(activeCategory);
+  const currentPage = profile ? categoryProfiles.findIndex(p => p.id === profile.id) + 1 : 0;
   const totalPages = categoryProfiles.length;
   
+  // If there's no profile, redirect to home
   useEffect(() => {
     if (!jobId) {
       navigate("/");
       return;
     }
 
-    if (!profile) {
-      navigate(`/profiles/${activeCategory}`);
+    if (!profile && profiles.length > 0) {
+      // Try to navigate to the first profile of active category
+      const catProfiles = getCategoryProfiles(activeCategory);
+      if (catProfiles.length > 0) {
+        navigate(`/profile/${catProfiles[0].id}`);
+      } else if (profiles.length > 0) {
+        // If no profiles in current category, switch to a category with profiles
+        if (newProfiles.length > 0) {
+          setActiveCategory("new");
+          navigate(`/profile/${newProfiles[0].id}`);
+        } else if (shortlistedProfiles.length > 0) {
+          setActiveCategory("shortlisted");
+          navigate(`/profile/${shortlistedProfiles[0].id}`);
+        } else if (rejectedProfiles.length > 0) {
+          setActiveCategory("rejected");
+          navigate(`/profile/${rejectedProfiles[0].id}`);
+        } else {
+          setActiveCategory("all");
+          navigate(`/profile/${profiles[0].id}`);
+        }
+      } else {
+        // No profiles at all, go back to job ID input
+        navigate("/");
+      }
     }
-  }, [jobId, profile, navigate, activeCategory]);
+  }, [profile, profiles, jobId, navigate, activeCategory]);
   
   const handleTabChange = (value: string) => {
     setActiveCategory(value as "all" | "new" | "shortlisted" | "rejected");
     
-    const targetProfiles = 
-      value === "all" ? allProfiles :
-      value === "new" ? newProfiles : 
-      value === "shortlisted" ? shortlistedProfiles : 
-      value === "rejected" ? rejectedProfiles : 
-      profiles;
+    const targetProfiles = getCategoryProfiles(value);
     
     if (targetProfiles.length > 0) {
       navigate(`/profile/${targetProfiles[0].id}`);
@@ -149,17 +193,26 @@ const ProfileViewer = () => {
         }
         
         // Find next profile in the current category
-        const currentCategoryProfiles = 
-          activeCategory === "new" ? newProfiles.filter(p => p.id !== profile.id) : 
-          activeCategory === "shortlisted" ? shortlistedProfiles : 
-          activeCategory === "rejected" ? rejectedProfiles : 
-          profiles;
+        const currentCatProfiles = getCategoryProfiles(activeCategory);
+        const filteredProfiles = currentCatProfiles.filter(p => p.id !== profile.id);
         
-        if (currentCategoryProfiles.length > 0) {
-          navigate(`/profile/${currentCategoryProfiles[0].id}`);
+        if (filteredProfiles.length > 0) {
+          navigate(`/profile/${filteredProfiles[0].id}`);
         } else {
-          // Navigate to category page when no more profiles in this category
-          navigate(`/profiles/${activeCategory}`);
+          // If no more profiles in this category, try to find a category with profiles
+          if (newProfiles.length > 0 && activeCategory !== "new") {
+            setActiveCategory("new");
+            navigate(`/profile/${newProfiles[0].id}`);
+          } else if (shortlistedProfiles.length > 0 && activeCategory !== "shortlisted") {
+            setActiveCategory("shortlisted");
+            navigate(`/profile/${shortlistedProfiles[0].id}`);
+          } else if (rejectedProfiles.length > 0 && activeCategory !== "rejected") {
+            setActiveCategory("rejected");
+            navigate(`/profile/${rejectedProfiles[0].id}`);
+          } else {
+            // No more profiles to review in any category
+            navigate("/");
+          }
         }
       } else {
         throw new Error("Failed to update status");
@@ -178,14 +231,8 @@ const ProfileViewer = () => {
   };
 
   const handleNavigate = (direction: "next" | "prev") => {
-    const targetProfiles = 
-      activeCategory === "all" ? allProfiles :
-      activeCategory === "new" ? newProfiles : 
-      activeCategory === "shortlisted" ? shortlistedProfiles : 
-      activeCategory === "rejected" ? rejectedProfiles : 
-      profiles;
-    
-    const currentIdx = targetProfiles.findIndex(p => p.id === profile?.id);
+    const targetProfiles = getCategoryProfiles(activeCategory);
+    const currentIdx = profile ? targetProfiles.findIndex(p => p.id === profile.id) : -1;
     
     if (direction === "next" && currentIdx < targetProfiles.length - 1) {
       navigate(`/profile/${targetProfiles[currentIdx + 1].id}`);
@@ -195,12 +242,7 @@ const ProfileViewer = () => {
   };
 
   const handlePageClick = (pageNum: number) => {
-    const targetProfiles = 
-      activeCategory === "all" ? allProfiles :
-      activeCategory === "new" ? newProfiles : 
-      activeCategory === "shortlisted" ? shortlistedProfiles : 
-      activeCategory === "rejected" ? rejectedProfiles : 
-      profiles;
+    const targetProfiles = getCategoryProfiles(activeCategory);
     
     if (pageNum >= 1 && pageNum <= targetProfiles.length) {
       navigate(`/profile/${targetProfiles[pageNum - 1].id}`);
@@ -227,8 +269,7 @@ const ProfileViewer = () => {
 
   const renderPagination = () => {
     const paginationItems = [];
-    const totalPages = categoryProfiles.length;
-    const currentPage = categoryProfiles.findIndex(p => p.id === id) + 1;
+    const currentPage = categoryProfiles.findIndex(p => p.id === profile.id) + 1;
     
     // Previous button
     paginationItems.push(
