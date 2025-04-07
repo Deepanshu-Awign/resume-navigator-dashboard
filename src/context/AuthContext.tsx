@@ -43,6 +43,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
+    // Check for existing user on mount
+    const storedUser = sessionStorage.getItem('mockUser');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setIsAdmin(true);
+      } catch (e) {
+        console.error("Error parsing stored user:", e);
+        sessionStorage.removeItem('mockUser');
+      }
+    }
+    
     checkUser();
   }, []);
 
@@ -75,6 +88,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAdmin(false);
       // Remove mock user from sessionStorage
       sessionStorage.removeItem('mockUser');
+      // Clear job ID from localStorage to fully reset the app state
+      localStorage.removeItem('jobId');
       toast({
         title: "Success",
         description: "Logged out successfully!",

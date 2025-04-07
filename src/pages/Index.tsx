@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,17 +9,25 @@ import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const navigate = useNavigate();
-  const [jobIdInput, setJobIdInput] = useState("");
+  const [searchParams] = useSearchParams();
+  const jobIdFromUrl = searchParams.get("jobId");
+  
+  const [jobIdInput, setJobIdInput] = useState(jobIdFromUrl || "");
   const [loading, setLoading] = useState(false);
   
   // Get context functions safely
   const profileContext = useProfiles();
   const { setJobId, fetchProfiles, setActiveCategory } = profileContext;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!jobIdInput.trim()) {
+  // Process job ID from URL on component mount
+  useEffect(() => {
+    if (jobIdFromUrl) {
+      processJobId(jobIdFromUrl);
+    }
+  }, [jobIdFromUrl]);
+
+  const processJobId = async (id: string) => {
+    if (!id.trim()) {
       toast({
         title: "Error",
         description: "Please enter a Job ID",
@@ -29,7 +37,7 @@ const Index = () => {
     }
     
     setLoading(true);
-    setJobId(jobIdInput.trim());
+    setJobId(id.trim());
     
     try {
       await fetchProfiles();
@@ -59,6 +67,11 @@ const Index = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await processJobId(jobIdInput);
   };
 
   return (
