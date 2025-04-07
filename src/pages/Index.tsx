@@ -17,7 +17,7 @@ const Index = () => {
   
   // Get context functions safely
   const profileContext = useProfiles();
-  const { setJobId, fetchProfiles, setActiveCategory } = profileContext;
+  const { setJobId, fetchProfiles, setActiveCategory, profiles } = profileContext;
 
   // Process job ID from URL on component mount
   useEffect(() => {
@@ -25,7 +25,7 @@ const Index = () => {
       console.log("Found jobId in URL:", jobIdFromUrl);
       processJobId(jobIdFromUrl);
     }
-  }, [jobIdFromUrl]);  // Added jobIdFromUrl as a dependency
+  }, [jobIdFromUrl]); 
 
   const processJobId = async (id: string) => {
     if (!id.trim()) {
@@ -38,31 +38,37 @@ const Index = () => {
     }
     
     setLoading(true);
-    setJobId(id.trim());
     
     try {
+      // First set the job ID in context
+      setJobId(id.trim());
+      
+      // Then fetch profiles for this job ID
       const result = await fetchProfiles();
       console.log("Profiles fetched:", result);
+      
+      if (!result || result.length === 0) {
+        toast({
+          title: "No profiles found",
+          description: `No profiles were found for Job ID: ${id}. Please check the ID and try again.`,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
       
       // Set the active category to "new" by default
       setActiveCategory("new");
       
       // Get profiles and find the first one with "New" status
-      const firstNewProfile = profileContext.profiles.find(profile => profile.status === "New");
+      const firstNewProfile = result.find(profile => profile.status === "New");
       
       if (firstNewProfile) {
         // Navigate directly to the profile view page if we have a "New" status profile
         navigate(`/profile/${firstNewProfile.id}`);
-      } else if (profileContext.profiles.length > 0) {
+      } else if (result.length > 0) {
         // Navigate to the first profile if no new profiles found
-        navigate(`/profile/${profileContext.profiles[0].id}`);
-      } else {
-        // No profiles found, show error toast
-        toast({
-          title: "No profiles found",
-          description: "No profiles were found for this Job ID.",
-          variant: "destructive",
-        });
+        navigate(`/profile/${result[0].id}`);
       }
     } catch (error) {
       console.error("Error:", error);

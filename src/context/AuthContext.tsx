@@ -54,6 +54,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error parsing stored user:", e);
         sessionStorage.removeItem('mockUser');
       }
+    } else {
+      setLoading(false);
     }
     
     checkUser();

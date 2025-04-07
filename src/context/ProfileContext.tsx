@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { ResumeProfile, JobStats } from "@/types";
 import { fetchProfilesFromGoogleSheets } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 interface ProfileContextType {
   jobId: string;
@@ -35,6 +36,9 @@ export const useProfiles = () => {
 };
 
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
+  // Get auth context to detect logout
+  const { user } = useAuth();
+  
   const [jobId, setJobId] = useState<string>(() => {
     return localStorage.getItem("jobId") || "";
   });
@@ -123,6 +127,16 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
+
+  // Monitor changes to user state for logout
+  useEffect(() => {
+    if (!user) {
+      // User logged out, clear jobId
+      setJobId("");
+      setProfiles([]);
+      localStorage.removeItem("jobId");
+    }
+  }, [user]);
 
   useEffect(() => {
     if (jobId) {
