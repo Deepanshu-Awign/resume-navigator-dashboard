@@ -14,7 +14,7 @@ const Index = () => {
   
   // Get context functions safely
   const profileContext = useProfiles();
-  const { setJobId, fetchProfiles } = profileContext;
+  const { setJobId, fetchProfiles, setActiveCategory } = profileContext;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +33,9 @@ const Index = () => {
     
     try {
       await fetchProfiles();
+      
+      // Set the active category to "new" by default
+      setActiveCategory("new");
       
       // Get profiles and find the first one with "New" status
       const firstNewProfile = profileContext.profiles.find(profile => profile.status === "New");

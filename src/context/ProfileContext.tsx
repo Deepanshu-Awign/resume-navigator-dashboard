@@ -40,7 +40,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   });
   const [profiles, setProfiles] = useState<ResumeProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [activeCategory, setActiveCategory] = useState<"all" | "new" | "shortlisted" | "rejected">("all");
+  const [activeCategory, setActiveCategory] = useState<"all" | "new" | "shortlisted" | "rejected">("new");
   const [currentProfileIndex, setCurrentProfileIndex] = useState<number>(0);
 
   // Calculate stats from profiles

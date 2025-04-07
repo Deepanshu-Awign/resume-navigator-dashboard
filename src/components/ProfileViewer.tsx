@@ -57,12 +57,14 @@ const ProfileViewer = () => {
   const profile = profiles.find(p => p.id === id) || filteredProfiles[currentProfileIndex] || null;
   
   // Get filtered profiles by tab/category
+  const allProfiles = profiles;
   const newProfiles = profiles.filter(p => p.status === "New");
   const shortlistedProfiles = profiles.filter(p => p.status === "Shortlisted");
   const rejectedProfiles = profiles.filter(p => p.status === "Rejected");
   
   // Calculate pagination values
   const categoryProfiles = 
+    activeCategory === "all" ? allProfiles :
     activeCategory === "new" ? newProfiles : 
     activeCategory === "shortlisted" ? shortlistedProfiles : 
     activeCategory === "rejected" ? rejectedProfiles : 
@@ -86,6 +88,7 @@ const ProfileViewer = () => {
     setActiveCategory(value as "all" | "new" | "shortlisted" | "rejected");
     
     const targetProfiles = 
+      value === "all" ? allProfiles :
       value === "new" ? newProfiles : 
       value === "shortlisted" ? shortlistedProfiles : 
       value === "rejected" ? rejectedProfiles : 
@@ -176,6 +179,7 @@ const ProfileViewer = () => {
 
   const handleNavigate = (direction: "next" | "prev") => {
     const targetProfiles = 
+      activeCategory === "all" ? allProfiles :
       activeCategory === "new" ? newProfiles : 
       activeCategory === "shortlisted" ? shortlistedProfiles : 
       activeCategory === "rejected" ? rejectedProfiles : 
@@ -192,6 +196,7 @@ const ProfileViewer = () => {
 
   const handlePageClick = (pageNum: number) => {
     const targetProfiles = 
+      activeCategory === "all" ? allProfiles :
       activeCategory === "new" ? newProfiles : 
       activeCategory === "shortlisted" ? shortlistedProfiles : 
       activeCategory === "rejected" ? rejectedProfiles : 
@@ -365,7 +370,8 @@ const ProfileViewer = () => {
             onValueChange={handleTabChange} 
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="new">New</TabsTrigger>
               <TabsTrigger value="shortlisted">Selected</TabsTrigger>
               <TabsTrigger value="rejected">Rejected</TabsTrigger>
