@@ -46,6 +46,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState<"all" | "new" | "shortlisted" | "rejected">("new");
   const [currentProfileIndex, setCurrentProfileIndex] = useState<number>(0);
+  const [fetchedJobIds, setFetchedJobIds] = useState<string[]>([]);
 
   // Calculate stats from profiles
   const stats: JobStats = {
@@ -103,7 +104,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  const fetchProfiles = async () => {
+  const fetchProfiles = async (): Promise<ResumeProfile[]> => {
     if (!jobId) return [];
     
     setLoading(true);
@@ -114,6 +115,10 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       
       if (data && data.length > 0) {
         setProfiles(data);
+        // Add this jobId to our fetched list to avoid duplicate fetches
+        if (!fetchedJobIds.includes(jobId)) {
+          setFetchedJobIds(prev => [...prev, jobId]);
+        }
         // Save jobId to localStorage only if profiles were found
         localStorage.setItem("jobId", jobId);
         return data;
@@ -134,20 +139,18 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Monitor changes to user state for logout
+  // Clear everything when user logs out
   useEffect(() => {
     if (!user) {
-      // User logged out, clear jobId
+      // User logged out, clear state
       setJobId("");
       setProfiles([]);
+      setFetchedJobIds([]);
       localStorage.removeItem("jobId");
     }
   }, [user]);
-
-  // Don't auto-fetch profiles on jobId change - we'll do this explicitly
-  // This prevents duplicate fetches and race conditions
   
-  // Reset profile index and update active category when needed
+  // Reset profile index when active category changes
   useEffect(() => {
     resetProfileIndex();
   }, [activeCategory]);

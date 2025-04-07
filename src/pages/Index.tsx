@@ -14,19 +14,20 @@ const Index = () => {
   
   const [jobIdInput, setJobIdInput] = useState(jobIdFromUrl || "");
   const [loading, setLoading] = useState(false);
-  const [urlProcessed, setUrlProcessed] = useState(false);
+  const [attemptedJobId, setAttemptedJobId] = useState<string | null>(null);
   
   // Get context functions safely
   const { setJobId, fetchProfiles, setActiveCategory } = useProfiles();
 
   // Process job ID from URL on component mount
   useEffect(() => {
-    if (jobIdFromUrl && !urlProcessed) {
-      console.log("Found jobId in URL:", jobIdFromUrl);
+    // Only process the URL parameter if it exists and hasn't been attempted yet
+    if (jobIdFromUrl && (!attemptedJobId || attemptedJobId !== jobIdFromUrl)) {
+      console.log("Processing jobId from URL:", jobIdFromUrl);
+      setAttemptedJobId(jobIdFromUrl);
       processJobId(jobIdFromUrl);
-      setUrlProcessed(true);
     }
-  }, [jobIdFromUrl, urlProcessed]); 
+  }, [jobIdFromUrl, attemptedJobId]); 
 
   const processJobId = async (id: string) => {
     if (!id.trim()) {
@@ -44,7 +45,7 @@ const Index = () => {
       // First set the job ID in context
       setJobId(id.trim());
       
-      // Then fetch profiles for this job ID
+      // Then fetch profiles for this job ID - using await to ensure we get the results
       const result = await fetchProfiles();
       console.log("Profiles fetched:", result);
       

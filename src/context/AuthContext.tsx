@@ -88,6 +88,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       await signOut();
+      
+      // Clear user state
       setUser(null);
       setIsAdmin(false);
       
@@ -97,13 +99,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear job ID from localStorage to fully reset the app state
       localStorage.removeItem('jobId');
       
-      // Force navigation to home page after logout
-      window.location.href = '/';
-      
       toast({
         title: "Success",
         description: "Logged out successfully!",
       });
+      
+      // Force navigation to home page after logout
+      window.location.href = '/';
     } catch (error: any) {
       toast({
         title: "Error",
