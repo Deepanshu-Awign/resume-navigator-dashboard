@@ -16,8 +16,7 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   
   // Get context functions safely
-  const profileContext = useProfiles();
-  const { setJobId, fetchProfiles, setActiveCategory, profiles } = profileContext;
+  const { setJobId, fetchProfiles, setActiveCategory } = useProfiles();
 
   // Process job ID from URL on component mount
   useEffect(() => {
@@ -25,7 +24,7 @@ const Index = () => {
       console.log("Found jobId in URL:", jobIdFromUrl);
       processJobId(jobIdFromUrl);
     }
-  }, [jobIdFromUrl]); 
+  }, []); // Only run once on mount to prevent infinite loops
 
   const processJobId = async (id: string) => {
     if (!id.trim()) {

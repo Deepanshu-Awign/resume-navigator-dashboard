@@ -50,9 +50,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         setIsAdmin(true);
+        setLoading(false);
       } catch (e) {
         console.error("Error parsing stored user:", e);
         sessionStorage.removeItem('mockUser');
+        setLoading(false);
       }
     } else {
       setLoading(false);
@@ -88,10 +90,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await signOut();
       setUser(null);
       setIsAdmin(false);
+      
       // Remove mock user from sessionStorage
       sessionStorage.removeItem('mockUser');
+      
       // Clear job ID from localStorage to fully reset the app state
       localStorage.removeItem('jobId');
+      
+      // Force navigation to home page after logout
+      window.location.href = '/';
+      
       toast({
         title: "Success",
         description: "Logged out successfully!",

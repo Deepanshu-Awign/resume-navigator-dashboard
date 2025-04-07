@@ -111,10 +111,16 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       console.log("Fetching profiles for jobId:", jobId);
       const data = await fetchProfilesFromGoogleSheets(jobId);
       console.log("Fetched profiles:", data);
-      setProfiles(data);
-      // Save jobId to localStorage
-      localStorage.setItem("jobId", jobId);
-      return data;
+      
+      if (data && data.length > 0) {
+        setProfiles(data);
+        // Save jobId to localStorage only if profiles were found
+        localStorage.setItem("jobId", jobId);
+        return data;
+      } else {
+        console.log("No profiles found for jobId:", jobId);
+        return [];
+      }
     } catch (error) {
       console.error("Error fetching profiles:", error);
       toast({
@@ -138,12 +144,9 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (jobId) {
-      fetchProfiles();
-    }
-  }, [jobId]);
-
+  // Don't auto-fetch profiles on jobId change - we'll do this explicitly
+  // This prevents duplicate fetches and race conditions
+  
   // Reset profile index and update active category when needed
   useEffect(() => {
     resetProfileIndex();
