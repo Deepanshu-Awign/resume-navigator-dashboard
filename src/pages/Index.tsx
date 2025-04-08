@@ -16,27 +16,32 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [processingJobId, setProcessingJobId] = useState(false);
   const fetchingRef = useRef(false);
+  const initialProcessingDoneRef = useRef(false);
   
   // Get context functions safely
   const { 
     setJobId, 
     fetchProfiles, 
     setActiveCategory, 
-    profiles,
     profilesCache,
     clearProfiles,
-    jobId: contextJobId
   } = useProfiles();
 
   // Process job ID from URL on component mount
   useEffect(() => {
     const processUrlJobId = async () => {
-      if (jobIdFromUrl && !processingJobId && !fetchingRef.current) {
+      if (jobIdFromUrl && !processingJobId && !fetchingRef.current && !initialProcessingDoneRef.current) {
         console.log("Processing jobId from URL:", jobIdFromUrl);
         setProcessingJobId(true);
         fetchingRef.current = true;
+        initialProcessingDoneRef.current = true;
+        
         try {
-          await processJobId(jobIdFromUrl);
+          // If there's a jobId in the URL, process it and navigate directly to the dashboard
+          const success = await processJobId(jobIdFromUrl);
+          if (success) {
+            navigate("/dashboard");
+          }
         } catch (error) {
           console.error("Error processing URL jobId:", error);
         } finally {
@@ -47,22 +52,22 @@ const Index = () => {
     };
     
     processUrlJobId();
-  }, [jobIdFromUrl]); 
+  }, [jobIdFromUrl, navigate]); 
 
-  const processJobId = async (id: string) => {
+  const processJobId = async (id: string): Promise<boolean> => {
     if (!id.trim()) {
       toast({
         title: "Error",
         description: "Please enter a Job ID",
         variant: "destructive",
       });
-      return;
+      return false;
     }
     
     // Check if already processing to prevent duplicate calls
     if (fetchingRef.current) {
       console.log("Already processing a job ID, skipping:", id);
-      return;
+      return false;
     }
     
     setLoading(true);
@@ -94,7 +99,7 @@ const Index = () => {
         });
         fetchingRef.current = false;
         setLoading(false);
-        return;
+        return false;
       }
       
       // Only proceed with navigation if we have profiles
@@ -115,7 +120,9 @@ const Index = () => {
           // Navigate to the first profile if no new profiles found
           navigate(`/profile/${result[0].id}`);
         }
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Error during profile processing:", error);
       toast({
@@ -123,6 +130,7 @@ const Index = () => {
         description: "Failed to fetch profiles. Please try again.",
         variant: "destructive",
       });
+      return false;
     } finally {
       setLoading(false);
       fetchingRef.current = false;

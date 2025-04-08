@@ -55,7 +55,7 @@ const ProfileList = () => {
       <div className="sticky top-16 z-10 bg-white border-b border-gray-200 shadow-sm">
         <div className="container mx-auto">
           <Tabs value={category} className="w-full">
-            <TabsList className="w-full justify-start overflow-x-auto p-0">
+            <TabsList className="w-full justify-start p-0">
               <TabsTrigger 
                 value="pending" 
                 onClick={() => navigate("/profiles/pending")}

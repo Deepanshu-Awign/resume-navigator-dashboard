@@ -11,6 +11,8 @@ import ProfileViewer from "./components/ProfileViewer";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Dashboard from "./pages/Dashboard";
+import ProfileList from "./pages/ProfileList";
 
 const queryClient = new QueryClient();
 
@@ -24,8 +26,9 @@ const App = () => (
             <Sonner />
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile/:id" element={<ProfileViewer />} />
-              <Route path="/profiles/:category" element={<ProfileViewer />} />
+              <Route path="/profiles/:category" element={<ProfileList />} />
               <Route path="/admin" element={<AdminLogin />} />
               <Route path="/admin/dashboard" element={
                 <ProtectedRoute>
