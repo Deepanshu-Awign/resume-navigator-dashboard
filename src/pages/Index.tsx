@@ -137,7 +137,7 @@ const Index = () => {
         setActiveCategory("pending");
         
         // For regular form submissions, navigate to the first profile
-        if (!jobIdFromUrl) {
+        // if (!jobIdFromUrl) {
           // Get profiles and find the first one with "New" status
           const firstNewProfile = result.find(profile => profile.status === "New");
           
@@ -150,7 +150,7 @@ const Index = () => {
             // Navigate to the first profile if no new profiles found
             navigate(`/profile/${result[0].id}`);
           }
-        }
+        // }
         return true;
       }
       return false;
