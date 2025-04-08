@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
@@ -23,44 +22,66 @@ const Index = () => {
     setJobId, 
     fetchProfiles, 
     setActiveCategory, 
-    profilesCache,
     clearProfiles,
   } = useProfiles();
 
   // Process job ID from URL on component mount
   useEffect(() => {
     const processUrlJobId = async () => {
-      if (jobIdFromUrl && !processingJobId && !fetchingRef.current && !initialProcessingDoneRef.current) {
+      if (jobIdFromUrl && !initialProcessingDoneRef.current) {
         console.log("Processing jobId from URL:", jobIdFromUrl);
         console.log("Processing flag states - processingJobId:", processingJobId, "fetchingRef:", fetchingRef.current, "initialProcessingDoneRef:", initialProcessingDoneRef.current);
-        setProcessingJobId(true);
-        fetchingRef.current = true;
+        
+        // Mark as processing BEFORE we start to prevent double-processing
         initialProcessingDoneRef.current = true;
+        setProcessingJobId(true);
         
         try {
-          // If there's a jobId in the URL, process it and navigate directly to the dashboard
-          console.log("Beginning to process Job ID from URL, calling processJobId");
-          const success = await processJobId(jobIdFromUrl);
-          console.log("Finished processing URL Job ID, success:", success);
+          // Clear any existing profiles
+          clearProfiles();
           
-          if (success) {
-            console.log("Successfully processed jobId from URL, navigating to dashboard");
-            navigate("/dashboard");
-          } else {
-            console.log("Failed to process jobId from URL, staying on homepage");
+          // Set the job ID in context first
+          console.log("Setting job ID in context:", jobIdFromUrl.trim());
+          setJobId(jobIdFromUrl.trim());
+          
+          // Allow time for the state to update
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Then fetch profiles
+          console.log("Starting profile fetch for URL job ID:", jobIdFromUrl.trim());
+          const result = await fetchProfiles();
+          console.log("URL Job ID fetch completed, got:", result?.length || 0, "profiles");
+          
+          if (!result || result.length === 0) {
+            console.log("No profiles found for URL Job ID:", jobIdFromUrl.trim());
+            toast({
+              title: "No profiles found",
+              description: `No profiles were found for Job ID: ${jobIdFromUrl}. Please check the ID and try again.`,
+              variant: "destructive",
+            });
+            setProcessingJobId(false);
+            return;
           }
+          
+          console.log("Successfully processed jobId from URL, navigating to dashboard");
+          setActiveCategory("pending");
+          navigate("/dashboard");
         } catch (error) {
           console.error("Error processing URL jobId:", error);
+          toast({
+            title: "Error",
+            description: "Failed to process job ID. Please try again.",
+            variant: "destructive",
+          });
         } finally {
           setProcessingJobId(false);
-          fetchingRef.current = false;
         }
       }
     };
     
     console.log("Initial mount - URL JobId:", jobIdFromUrl);
     processUrlJobId();
-  }, [jobIdFromUrl, navigate]); 
+  }, [jobIdFromUrl, navigate, setJobId, fetchProfiles, clearProfiles, setActiveCategory]); 
 
   const processJobId = async (id: string): Promise<boolean> => {
     if (!id.trim()) {
@@ -73,14 +94,12 @@ const Index = () => {
     }
     
     // Check if already processing to prevent duplicate calls
-    if (fetchingRef.current) {
+    if (loading) {
       console.log("Already processing a job ID, skipping:", id);
       return false;
     }
     
     setLoading(true);
-    fetchingRef.current = true;
-    console.log("Processing Job ID:", id);
     
     try {
       // First clear any existing profiles to prevent flash of old data
@@ -105,8 +124,6 @@ const Index = () => {
           description: `No profiles were found for Job ID: ${id}. Please check the ID and try again.`,
           variant: "destructive",
         });
-        fetchingRef.current = false;
-        setLoading(false);
         return false;
       }
       
@@ -117,7 +134,6 @@ const Index = () => {
         setActiveCategory("pending");
         
         // For regular form submissions, navigate to the first profile
-        // For URL parameters (jobIdFromUrl), we'll navigate to dashboard in the useEffect
         if (!jobIdFromUrl) {
           // Get profiles and find the first one with "New" status
           const firstNewProfile = result.find(profile => profile.status === "New");
@@ -145,7 +161,6 @@ const Index = () => {
       return false;
     } finally {
       setLoading(false);
-      fetchingRef.current = false;
     }
   };
 
