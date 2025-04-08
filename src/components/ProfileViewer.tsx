@@ -420,15 +420,15 @@ const ProfileViewer = () => {
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="pending" className="flex">
                 <span>Pending</span>
-                <span className="text-xs ml-2 font-normal">{stats.new}</span>
+                <span className="text-xs ml-2 font-normal">({stats.new})</span>
               </TabsTrigger>
               <TabsTrigger value="shortlisted" className="flex">
                 <span>Selected</span>
-                <span className="text-xs ml-2 font-normal">{stats.shortlisted}</span>
+                <span className="text-xs ml-2 font-normal">({stats.shortlisted})</span>
               </TabsTrigger>
               <TabsTrigger value="rejected" className="flex">
                 <span>Rejected</span>
-                <span className="text-xs ml-2 font-normal">{stats.rejected}</span>
+                <span className="text-xs ml-2 font-normal">({stats.rejected})</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>

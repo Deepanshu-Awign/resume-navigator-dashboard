@@ -82,7 +82,7 @@ const Index = () => {
     console.log("Initial mount - URL JobId:", jobIdFromUrl);
     // processUrlJobId();
     if(jobIdFromUrl){
-    setTimeout(()=>processJobId(jobIdFromUrl),1000);
+    setTimeout(()=>processJobId(jobIdFromUrl),2000);
     }
   }, [jobIdFromUrl, navigate, setJobId, fetchProfiles, clearProfiles, setActiveCategory]); 
 
