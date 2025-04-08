@@ -80,7 +80,10 @@ const Index = () => {
     };
     
     console.log("Initial mount - URL JobId:", jobIdFromUrl);
-    processUrlJobId();
+    // processUrlJobId();
+    if(jobIdFromUrl){
+    setTimeout(()=>processJobId(jobIdFromUrl),500);
+    }
   }, [jobIdFromUrl, navigate, setJobId, fetchProfiles, clearProfiles, setActiveCategory]); 
 
   const processJobId = async (id: string): Promise<boolean> => {
