@@ -42,13 +42,17 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   
   const [jobId, setJobId] = useState<string>(() => {
-    return localStorage.getItem("jobId") || "";
+    const savedJobId = localStorage.getItem("jobId");
+    console.log("Initial jobId from localStorage:", savedJobId);
+    return savedJobId || "";
   });
+  
   const [profiles, setProfiles] = useState<ResumeProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState<"all" | "new" | "shortlisted" | "rejected">("new");
   const [currentProfileIndex, setCurrentProfileIndex] = useState<number>(0);
   const [profilesCache, setProfilesCache] = useState<Record<string, ResumeProfile[]>>({});
+  const [fetchInProgress, setFetchInProgress] = useState<Record<string, boolean>>({});
 
   // Calculate stats from profiles
   const stats: JobStats = {
@@ -104,25 +108,48 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
         profile.id === id ? { ...profile, status } : profile
       )
     );
+    
+    // Also update cache
+    if (jobId && profilesCache[jobId]) {
+      setProfilesCache(prevCache => ({
+        ...prevCache,
+        [jobId]: prevCache[jobId].map(profile => 
+          profile.id === id ? { ...profile, status } : profile
+        )
+      }));
+    }
   };
 
   const clearProfiles = () => {
+    console.log("Clearing profiles");
     setProfiles([]);
     setCurrentProfileIndex(0);
   };
 
   const fetchProfiles = async (): Promise<ResumeProfile[]> => {
-    if (!jobId) return [];
+    if (!jobId) {
+      console.log("No jobId provided to fetchProfiles");
+      return [];
+    }
+    
+    // If fetch is already in progress for this jobId, return the cached profiles or empty array
+    if (fetchInProgress[jobId]) {
+      console.log("Fetch already in progress for jobId:", jobId);
+      return profilesCache[jobId] || [];
+    }
     
     setLoading(true);
+    setFetchInProgress(prev => ({ ...prev, [jobId]: true }));
+    
     try {
       console.log("Fetching profiles for jobId:", jobId);
       
       // Check cache first
       if (profilesCache[jobId] && profilesCache[jobId].length > 0) {
-        console.log("Using cached profiles for jobId:", jobId);
+        console.log("Using cached profiles for jobId:", jobId, "count:", profilesCache[jobId].length);
         setProfiles(profilesCache[jobId]);
         setLoading(false);
+        setFetchInProgress(prev => ({ ...prev, [jobId]: false }));
         return profilesCache[jobId];
       }
       
@@ -157,13 +184,32 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       return [];
     } finally {
       setLoading(false);
+      setFetchInProgress(prev => ({ ...prev, [jobId]: false }));
     }
   };
+
+  // Load profiles from cache when jobId changes
+  useEffect(() => {
+    const loadProfilesFromCache = async () => {
+      if (jobId && profilesCache[jobId] && profilesCache[jobId].length > 0) {
+        console.log("Loading profiles from cache for jobId:", jobId);
+        setProfiles(profilesCache[jobId]);
+      } else if (jobId) {
+        console.log("No cached profiles found for jobId:", jobId, "- fetching fresh");
+        fetchProfiles().catch(error => {
+          console.error("Error in auto-fetch:", error);
+        });
+      }
+    };
+    
+    loadProfilesFromCache();
+  }, [jobId]);
 
   // Clear everything when user logs out
   useEffect(() => {
     if (!user) {
       // User logged out, clear state
+      console.log("User logged out, clearing all profile state");
       setJobId("");
       setProfiles([]);
       setProfilesCache({});

@@ -32,8 +32,13 @@ const Index = () => {
       if (jobIdFromUrl && !processingJobId) {
         console.log("Processing jobId from URL:", jobIdFromUrl);
         setProcessingJobId(true);
-        await processJobId(jobIdFromUrl);
-        setProcessingJobId(false);
+        try {
+          await processJobId(jobIdFromUrl);
+        } catch (error) {
+          console.error("Error processing URL jobId:", error);
+        } finally {
+          setProcessingJobId(false);
+        }
       }
     };
     
@@ -51,19 +56,26 @@ const Index = () => {
     }
     
     setLoading(true);
+    console.log("Processing Job ID:", id);
     
     try {
       // First clear any existing profiles to prevent flash of old data
       clearProfiles();
       
       // Set the job ID in context
+      console.log("Setting job ID in context:", id.trim());
       setJobId(id.trim());
       
+      // Give a small delay to ensure the job ID is properly set in context before fetching
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Then fetch profiles for this job ID - using await to ensure we get the results
+      console.log("Starting profile fetch for:", id.trim());
       const result = await fetchProfiles();
-      console.log("Profiles fetched:", result);
+      console.log("Profiles fetch completed, got:", result?.length || 0, "profiles");
       
       if (!result || result.length === 0) {
+        console.log("No profiles found for Job ID:", id.trim());
         toast({
           title: "No profiles found",
           description: `No profiles were found for Job ID: ${id}. Please check the ID and try again.`,
@@ -75,6 +87,7 @@ const Index = () => {
       
       // Only proceed with navigation if we have profiles
       if (result.length > 0) {
+        console.log("Found", result.length, "profiles, proceeding with navigation");
         // Set the active category to "new" by default
         setActiveCategory("new");
         
@@ -82,15 +95,17 @@ const Index = () => {
         const firstNewProfile = result.find(profile => profile.status === "New");
         
         if (firstNewProfile) {
+          console.log("Navigating to first new profile:", firstNewProfile.id);
           // Navigate directly to the profile view page if we have a "New" status profile
           navigate(`/profile/${firstNewProfile.id}`);
         } else if (result.length > 0) {
+          console.log("No new profiles found, navigating to first profile:", result[0].id);
           // Navigate to the first profile if no new profiles found
           navigate(`/profile/${result[0].id}`);
         }
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error during profile processing:", error);
       toast({
         title: "Error",
         description: "Failed to fetch profiles. Please try again.",
