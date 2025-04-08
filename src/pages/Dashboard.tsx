@@ -15,7 +15,7 @@ const Dashboard = () => {
     }
   }, [jobId, navigate]);
 
-  const handleCardClick = (category: "all" | "new" | "shortlisted" | "rejected") => {
+  const handleCardClick = (category: "pending" | "shortlisted" | "rejected") => {
     setActiveCategory(category);
     navigate(`/profiles/${category}`);
   };
@@ -38,18 +38,12 @@ const Dashboard = () => {
       <div className="container mx-auto p-4 flex-1">
         <h2 className="text-xl font-semibold mb-4">Resume Dashboard</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard 
-            title="All Resumes" 
-            count={stats.all} 
-            color=""
-            onClick={() => handleCardClick("all")} 
-          />
-          <StatCard 
-            title="New" 
+            title="Pending" 
             count={stats.new} 
             color="bg-blue-50 border-blue-200"
-            onClick={() => handleCardClick("new")} 
+            onClick={() => handleCardClick("pending")} 
           />
           <StatCard 
             title="Shortlisted" 

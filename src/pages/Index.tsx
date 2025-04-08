@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ const Index = () => {
   const [jobIdInput, setJobIdInput] = useState(jobIdFromUrl || "");
   const [loading, setLoading] = useState(false);
   const [processingJobId, setProcessingJobId] = useState(false);
+  const fetchingRef = useRef(false);
   
   // Get context functions safely
   const { 
@@ -23,21 +24,24 @@ const Index = () => {
     setActiveCategory, 
     profiles,
     profilesCache,
-    clearProfiles 
+    clearProfiles,
+    jobId: contextJobId
   } = useProfiles();
 
   // Process job ID from URL on component mount
   useEffect(() => {
     const processUrlJobId = async () => {
-      if (jobIdFromUrl && !processingJobId) {
+      if (jobIdFromUrl && !processingJobId && !fetchingRef.current) {
         console.log("Processing jobId from URL:", jobIdFromUrl);
         setProcessingJobId(true);
+        fetchingRef.current = true;
         try {
           await processJobId(jobIdFromUrl);
         } catch (error) {
           console.error("Error processing URL jobId:", error);
         } finally {
           setProcessingJobId(false);
+          fetchingRef.current = false;
         }
       }
     };
@@ -55,7 +59,14 @@ const Index = () => {
       return;
     }
     
+    // Check if already processing to prevent duplicate calls
+    if (fetchingRef.current) {
+      console.log("Already processing a job ID, skipping:", id);
+      return;
+    }
+    
     setLoading(true);
+    fetchingRef.current = true;
     console.log("Processing Job ID:", id);
     
     try {
@@ -66,8 +77,8 @@ const Index = () => {
       console.log("Setting job ID in context:", id.trim());
       setJobId(id.trim());
       
-      // Give a small delay to ensure the job ID is properly set in context before fetching
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Allow time for the state to update
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // Then fetch profiles for this job ID - using await to ensure we get the results
       console.log("Starting profile fetch for:", id.trim());
@@ -81,15 +92,14 @@ const Index = () => {
           description: `No profiles were found for Job ID: ${id}. Please check the ID and try again.`,
           variant: "destructive",
         });
-        setLoading(false);
         return;
       }
       
       // Only proceed with navigation if we have profiles
       if (result.length > 0) {
         console.log("Found", result.length, "profiles, proceeding with navigation");
-        // Set the active category to "new" by default
-        setActiveCategory("new");
+        // Set the active category to "pending" by default (renamed from "new")
+        setActiveCategory("pending");
         
         // Get profiles and find the first one with "New" status
         const firstNewProfile = result.find(profile => profile.status === "New");
@@ -113,6 +123,7 @@ const Index = () => {
       });
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   };
 

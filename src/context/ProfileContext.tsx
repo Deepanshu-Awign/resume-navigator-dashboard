@@ -12,8 +12,8 @@ interface ProfileContextType {
   fetchProfiles: () => Promise<ResumeProfile[]>;
   loading: boolean;
   stats: JobStats;
-  activeCategory: "all" | "new" | "shortlisted" | "rejected";
-  setActiveCategory: (category: "all" | "new" | "shortlisted" | "rejected") => void;
+  activeCategory: "all" | "pending" | "shortlisted" | "rejected";
+  setActiveCategory: (category: "all" | "pending" | "shortlisted" | "rejected") => void;
   filteredProfiles: ResumeProfile[];
   currentProfileIndex: number;
   setCurrentProfileIndex: (index: number) => void;
@@ -41,18 +41,27 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   // Get auth context to detect logout
   const { user } = useAuth();
   
-  const [jobId, setJobId] = useState<string>(() => {
-    const savedJobId = localStorage.getItem("jobId");
-    console.log("Initial jobId from localStorage:", savedJobId);
-    return savedJobId || "";
-  });
+  const [jobId, setJobId] = useState<string>("");
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   
   const [profiles, setProfiles] = useState<ResumeProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [activeCategory, setActiveCategory] = useState<"all" | "new" | "shortlisted" | "rejected">("new");
+  const [activeCategory, setActiveCategory] = useState<"all" | "pending" | "shortlisted" | "rejected">("pending");
   const [currentProfileIndex, setCurrentProfileIndex] = useState<number>(0);
   const [profilesCache, setProfilesCache] = useState<Record<string, ResumeProfile[]>>({});
   const [fetchInProgress, setFetchInProgress] = useState<Record<string, boolean>>({});
+
+  // Initialize jobId from localStorage only once on mount
+  useEffect(() => {
+    const savedJobId = localStorage.getItem("jobId");
+    console.log("Initial jobId from localStorage:", savedJobId);
+    
+    if (savedJobId) {
+      setJobId(savedJobId);
+    }
+    
+    setInitialLoadDone(true);
+  }, []);
 
   // Calculate stats from profiles
   const stats: JobStats = {
@@ -65,7 +74,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   // Filter profiles based on activeCategory
   const filteredProfiles = profiles.filter(profile => {
     if (activeCategory === "all") return true;
-    if (activeCategory === "new") return profile.status === "New";
+    if (activeCategory === "pending") return profile.status === "New";
     if (activeCategory === "shortlisted") return profile.status === "Shortlisted";
     if (activeCategory === "rejected") return profile.status === "Rejected";
     return false;
@@ -188,22 +197,22 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Load profiles from cache when jobId changes
+  // Only load profiles from cache when jobId changes AND initialLoadDone is true
   useEffect(() => {
+    // Skip the initial load when the component first mounts
+    if (!initialLoadDone) return;
+    
     const loadProfilesFromCache = async () => {
       if (jobId && profilesCache[jobId] && profilesCache[jobId].length > 0) {
         console.log("Loading profiles from cache for jobId:", jobId);
         setProfiles(profilesCache[jobId]);
-      } else if (jobId) {
-        console.log("No cached profiles found for jobId:", jobId, "- fetching fresh");
-        fetchProfiles().catch(error => {
-          console.error("Error in auto-fetch:", error);
-        });
       }
     };
     
-    loadProfilesFromCache();
-  }, [jobId]);
+    if (jobId) {
+      loadProfilesFromCache();
+    }
+  }, [jobId, initialLoadDone]);
 
   // Clear everything when user logs out
   useEffect(() => {

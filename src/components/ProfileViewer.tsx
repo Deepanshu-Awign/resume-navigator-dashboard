@@ -45,7 +45,8 @@ const ProfileViewer = () => {
     goToPreviousProfile,
     hasMoreProfiles,
     hasPreviousProfiles,
-    updateProfileStatusLocally
+    updateProfileStatusLocally,
+    stats
   } = useProfiles();
 
   const [loading, setLoading] = useState(false);
@@ -62,7 +63,7 @@ const ProfileViewer = () => {
 
     // If we're on a profiles/:category route
     if (category && !id) {
-      setActiveCategory(category as "all" | "new" | "shortlisted" | "rejected");
+      setActiveCategory(category as "all" | "pending" | "shortlisted" | "rejected");
       
       // Find first profile in the category and navigate to it
       const categoryProfiles = getCategoryProfiles(category);
@@ -78,16 +79,14 @@ const ProfileViewer = () => {
     : filteredProfiles[currentProfileIndex] || null;
   
   // Get filtered profiles by tab/category
-  const allProfiles = profiles;
-  const newProfiles = profiles.filter(p => p.status === "New");
+  const pendingProfiles = profiles.filter(p => p.status === "New");
   const shortlistedProfiles = profiles.filter(p => p.status === "Shortlisted");
   const rejectedProfiles = profiles.filter(p => p.status === "Rejected");
   
   // Helper function to get profiles based on category
   const getCategoryProfiles = (cat: string | undefined) => {
     switch (cat) {
-      case "all": return allProfiles;
-      case "new": return newProfiles;
+      case "pending": return pendingProfiles;
       case "shortlisted": return shortlistedProfiles;
       case "rejected": return rejectedProfiles;
       default: return filteredProfiles;
@@ -113,18 +112,15 @@ const ProfileViewer = () => {
         navigate(`/profile/${catProfiles[0].id}`);
       } else if (profiles.length > 0) {
         // If no profiles in current category, switch to a category with profiles
-        if (newProfiles.length > 0) {
-          setActiveCategory("new");
-          navigate(`/profile/${newProfiles[0].id}`);
+        if (pendingProfiles.length > 0) {
+          setActiveCategory("pending");
+          navigate(`/profile/${pendingProfiles[0].id}`);
         } else if (shortlistedProfiles.length > 0) {
           setActiveCategory("shortlisted");
           navigate(`/profile/${shortlistedProfiles[0].id}`);
         } else if (rejectedProfiles.length > 0) {
           setActiveCategory("rejected");
           navigate(`/profile/${rejectedProfiles[0].id}`);
-        } else {
-          setActiveCategory("all");
-          navigate(`/profile/${profiles[0].id}`);
         }
       } else {
         // No profiles at all, go back to job ID input
@@ -134,7 +130,7 @@ const ProfileViewer = () => {
   }, [profile, profiles, jobId, navigate, activeCategory]);
   
   const handleTabChange = (value: string) => {
-    setActiveCategory(value as "all" | "new" | "shortlisted" | "rejected");
+    setActiveCategory(value as "pending" | "shortlisted" | "rejected");
     
     const targetProfiles = getCategoryProfiles(value);
     
@@ -210,9 +206,9 @@ const ProfileViewer = () => {
           navigate(`/profile/${filteredProfiles[0].id}`);
         } else {
           // If no more profiles in this category, try to find a category with profiles
-          if (newProfiles.length > 0 && activeCategory !== "new") {
-            setActiveCategory("new");
-            navigate(`/profile/${newProfiles[0].id}`);
+          if (pendingProfiles.length > 0 && activeCategory !== "pending") {
+            setActiveCategory("pending");
+            navigate(`/profile/${pendingProfiles[0].id}`);
           } else if (shortlistedProfiles.length > 0 && activeCategory !== "shortlisted") {
             setActiveCategory("shortlisted");
             navigate(`/profile/${shortlistedProfiles[0].id}`);
@@ -413,19 +409,27 @@ const ProfileViewer = () => {
         </div>
       </header>
       
-      {/* Tab Navigation */}
-      <div className="border-b bg-white">
+      {/* Tab Navigation - Fixed at the top, not scrollable */}
+      <div className="border-b bg-white sticky top-14 z-10">
         <div className="container mx-auto px-4">
           <Tabs 
             value={activeCategory} 
             onValueChange={handleTabChange} 
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="new">New</TabsTrigger>
-              <TabsTrigger value="shortlisted">Selected</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="pending" className="flex flex-col">
+                <span>Pending</span>
+                <span className="text-xs mt-1 font-normal">{stats.new}</span>
+              </TabsTrigger>
+              <TabsTrigger value="shortlisted" className="flex flex-col">
+                <span>Selected</span>
+                <span className="text-xs mt-1 font-normal">{stats.shortlisted}</span>
+              </TabsTrigger>
+              <TabsTrigger value="rejected" className="flex flex-col">
+                <span>Rejected</span>
+                <span className="text-xs mt-1 font-normal">{stats.rejected}</span>
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

@@ -12,7 +12,8 @@ const ProfileList = () => {
     jobId, 
     filteredProfiles, 
     setActiveCategory,
-    loading
+    loading,
+    stats
   } = useProfiles();
 
   useEffect(() => {
@@ -28,11 +29,19 @@ const ProfileList = () => {
 
   const getCategoryTitle = () => {
     switch (category) {
-      case "all": return "All Resumes";
-      case "new": return "New Resumes";
+      case "pending": return "Pending Resumes";
       case "shortlisted": return "Shortlisted Resumes";
       case "rejected": return "Rejected Resumes";
       default: return "Resumes";
+    }
+  };
+
+  const getCategoryCount = () => {
+    switch (category) {
+      case "pending": return stats.new;
+      case "shortlisted": return stats.shortlisted;
+      case "rejected": return stats.rejected;
+      default: return filteredProfiles.length;
     }
   };
 
@@ -54,7 +63,7 @@ const ProfileList = () => {
       <div className="container mx-auto p-4 flex-1">
         <div className="mb-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold">
-            {getCategoryTitle()} ({filteredProfiles.length})
+            {getCategoryTitle()} ({getCategoryCount()})
           </h2>
         </div>
         
