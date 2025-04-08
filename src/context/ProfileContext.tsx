@@ -23,6 +23,8 @@ interface ProfileContextType {
   hasPreviousProfiles: boolean;
   resetProfileIndex: () => void;
   updateProfileStatusLocally: (id: string, status: "Shortlisted" | "Rejected") => void;
+  profilesCache: Record<string, ResumeProfile[]>;
+  clearProfiles: () => void;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -46,7 +48,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [activeCategory, setActiveCategory] = useState<"all" | "new" | "shortlisted" | "rejected">("new");
   const [currentProfileIndex, setCurrentProfileIndex] = useState<number>(0);
-  const [fetchedJobIds, setFetchedJobIds] = useState<string[]>([]);
+  const [profilesCache, setProfilesCache] = useState<Record<string, ResumeProfile[]>>({});
 
   // Calculate stats from profiles
   const stats: JobStats = {
@@ -104,23 +106,42 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  const clearProfiles = () => {
+    setProfiles([]);
+    setCurrentProfileIndex(0);
+  };
+
   const fetchProfiles = async (): Promise<ResumeProfile[]> => {
     if (!jobId) return [];
     
     setLoading(true);
     try {
       console.log("Fetching profiles for jobId:", jobId);
+      
+      // Check cache first
+      if (profilesCache[jobId] && profilesCache[jobId].length > 0) {
+        console.log("Using cached profiles for jobId:", jobId);
+        setProfiles(profilesCache[jobId]);
+        setLoading(false);
+        return profilesCache[jobId];
+      }
+      
       const data = await fetchProfilesFromGoogleSheets(jobId);
       console.log("Fetched profiles:", data);
       
       if (data && data.length > 0) {
+        // Update cache with the fetched profiles
+        setProfilesCache(prev => ({
+          ...prev,
+          [jobId]: data
+        }));
+        
+        // Update current profiles in state
         setProfiles(data);
-        // Add this jobId to our fetched list to avoid duplicate fetches
-        if (!fetchedJobIds.includes(jobId)) {
-          setFetchedJobIds(prev => [...prev, jobId]);
-        }
+        
         // Save jobId to localStorage only if profiles were found
         localStorage.setItem("jobId", jobId);
+        
         return data;
       } else {
         console.log("No profiles found for jobId:", jobId);
@@ -145,7 +166,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       // User logged out, clear state
       setJobId("");
       setProfiles([]);
-      setFetchedJobIds([]);
+      setProfilesCache({});
       localStorage.removeItem("jobId");
     }
   }, [user]);
@@ -172,7 +193,9 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     hasMoreProfiles,
     hasPreviousProfiles,
     resetProfileIndex,
-    updateProfileStatusLocally
+    updateProfileStatusLocally,
+    profilesCache,
+    clearProfiles
   };
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

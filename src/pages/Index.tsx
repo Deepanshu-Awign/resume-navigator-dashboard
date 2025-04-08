@@ -14,20 +14,31 @@ const Index = () => {
   
   const [jobIdInput, setJobIdInput] = useState(jobIdFromUrl || "");
   const [loading, setLoading] = useState(false);
-  const [attemptedJobId, setAttemptedJobId] = useState<string | null>(null);
+  const [processingJobId, setProcessingJobId] = useState(false);
   
   // Get context functions safely
-  const { setJobId, fetchProfiles, setActiveCategory } = useProfiles();
+  const { 
+    setJobId, 
+    fetchProfiles, 
+    setActiveCategory, 
+    profiles,
+    profilesCache,
+    clearProfiles 
+  } = useProfiles();
 
   // Process job ID from URL on component mount
   useEffect(() => {
-    // Only process the URL parameter if it exists and hasn't been attempted yet
-    if (jobIdFromUrl && (!attemptedJobId || attemptedJobId !== jobIdFromUrl)) {
-      console.log("Processing jobId from URL:", jobIdFromUrl);
-      setAttemptedJobId(jobIdFromUrl);
-      processJobId(jobIdFromUrl);
-    }
-  }, [jobIdFromUrl, attemptedJobId]); 
+    const processUrlJobId = async () => {
+      if (jobIdFromUrl && !processingJobId) {
+        console.log("Processing jobId from URL:", jobIdFromUrl);
+        setProcessingJobId(true);
+        await processJobId(jobIdFromUrl);
+        setProcessingJobId(false);
+      }
+    };
+    
+    processUrlJobId();
+  }, [jobIdFromUrl]); 
 
   const processJobId = async (id: string) => {
     if (!id.trim()) {
@@ -42,7 +53,10 @@ const Index = () => {
     setLoading(true);
     
     try {
-      // First set the job ID in context
+      // First clear any existing profiles to prevent flash of old data
+      clearProfiles();
+      
+      // Set the job ID in context
       setJobId(id.trim());
       
       // Then fetch profiles for this job ID - using await to ensure we get the results
@@ -59,18 +73,21 @@ const Index = () => {
         return;
       }
       
-      // Set the active category to "new" by default
-      setActiveCategory("new");
-      
-      // Get profiles and find the first one with "New" status
-      const firstNewProfile = result.find(profile => profile.status === "New");
-      
-      if (firstNewProfile) {
-        // Navigate directly to the profile view page if we have a "New" status profile
-        navigate(`/profile/${firstNewProfile.id}`);
-      } else if (result.length > 0) {
-        // Navigate to the first profile if no new profiles found
-        navigate(`/profile/${result[0].id}`);
+      // Only proceed with navigation if we have profiles
+      if (result.length > 0) {
+        // Set the active category to "new" by default
+        setActiveCategory("new");
+        
+        // Get profiles and find the first one with "New" status
+        const firstNewProfile = result.find(profile => profile.status === "New");
+        
+        if (firstNewProfile) {
+          // Navigate directly to the profile view page if we have a "New" status profile
+          navigate(`/profile/${firstNewProfile.id}`);
+        } else if (result.length > 0) {
+          // Navigate to the first profile if no new profiles found
+          navigate(`/profile/${result[0].id}`);
+        }
       }
     } catch (error) {
       console.error("Error:", error);
@@ -114,9 +131,9 @@ const Index = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={loading}
+                disabled={loading || processingJobId}
               >
-                {loading ? "Loading..." : "Continue"}
+                {loading || processingJobId ? "Loading..." : "Continue"}
               </Button>
             </form>
           </CardContent>
