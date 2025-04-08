@@ -151,11 +151,21 @@ const ProfileViewer = () => {
   const downloadResume = () => {
     if (!profile?.pdfUrl) return;
     
-    // Create proper download URL for Google Docs
+    // Create proper download URL for Google Docs or Google Drive
     let downloadUrl = profile.pdfUrl;
+    
     if (downloadUrl.includes('docs.google.com/document')) {
       // Replace /edit or /preview with /export?format=pdf
       downloadUrl = downloadUrl.replace(/\/(edit|preview).*$/, '/export?format=pdf');
+    }
+    else if (downloadUrl.includes('drive.google.com/file/d/')) {
+      // Extract file ID from Google Drive URL
+      const fileIdMatch = downloadUrl.match(/\/d\/([^\/]+)\//);
+      if (fileIdMatch && fileIdMatch[1]) {
+        const fileId = fileIdMatch[1];
+        // Format for direct download
+        downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      }
     }
     
     // Create a temporary anchor element to trigger the download

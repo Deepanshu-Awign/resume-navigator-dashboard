@@ -55,9 +55,21 @@ export const PDFObject = ({ url }: PDFObjectProps) => {
 
   // Process the URL for proper embedding
   let pdfUrl = url;
+  
+  // Handle Google Docs links
   if (url.includes('docs.google.com/document')) {
     // This format works better for embedding Google Docs
     pdfUrl = url.replace(/\/edit.*$/, '/preview');
+  }
+  // Handle Google Drive PDF links
+  else if (url.includes('drive.google.com/file/d/')) {
+    // Extract file ID from Google Drive URL
+    const fileIdMatch = url.match(/\/d\/([^\/]+)\//);
+    if (fileIdMatch && fileIdMatch[1]) {
+      const fileId = fileIdMatch[1];
+      // Format for embedding: https://drive.google.com/file/d/FILE_ID/preview
+      pdfUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+    }
   }
 
   const handleIframeLoad = () => {
