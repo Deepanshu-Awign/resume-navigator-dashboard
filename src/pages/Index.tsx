@@ -32,15 +32,22 @@ const Index = () => {
     const processUrlJobId = async () => {
       if (jobIdFromUrl && !processingJobId && !fetchingRef.current && !initialProcessingDoneRef.current) {
         console.log("Processing jobId from URL:", jobIdFromUrl);
+        console.log("Processing flag states - processingJobId:", processingJobId, "fetchingRef:", fetchingRef.current, "initialProcessingDoneRef:", initialProcessingDoneRef.current);
         setProcessingJobId(true);
         fetchingRef.current = true;
         initialProcessingDoneRef.current = true;
         
         try {
           // If there's a jobId in the URL, process it and navigate directly to the dashboard
+          console.log("Beginning to process Job ID from URL, calling processJobId");
           const success = await processJobId(jobIdFromUrl);
+          console.log("Finished processing URL Job ID, success:", success);
+          
           if (success) {
+            console.log("Successfully processed jobId from URL, navigating to dashboard");
             navigate("/dashboard");
+          } else {
+            console.log("Failed to process jobId from URL, staying on homepage");
           }
         } catch (error) {
           console.error("Error processing URL jobId:", error);
@@ -51,6 +58,7 @@ const Index = () => {
       }
     };
     
+    console.log("Initial mount - URL JobId:", jobIdFromUrl);
     processUrlJobId();
   }, [jobIdFromUrl, navigate]); 
 
@@ -83,7 +91,7 @@ const Index = () => {
       setJobId(id.trim());
       
       // Allow time for the state to update
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Then fetch profiles for this job ID - using await to ensure we get the results
       console.log("Starting profile fetch for:", id.trim());
@@ -108,17 +116,21 @@ const Index = () => {
         // Set the active category to "pending" by default (renamed from "new")
         setActiveCategory("pending");
         
-        // Get profiles and find the first one with "New" status
-        const firstNewProfile = result.find(profile => profile.status === "New");
-        
-        if (firstNewProfile) {
-          console.log("Navigating to first new profile:", firstNewProfile.id);
-          // Navigate directly to the profile view page if we have a "New" status profile
-          navigate(`/profile/${firstNewProfile.id}`);
-        } else if (result.length > 0) {
-          console.log("No new profiles found, navigating to first profile:", result[0].id);
-          // Navigate to the first profile if no new profiles found
-          navigate(`/profile/${result[0].id}`);
+        // For regular form submissions, navigate to the first profile
+        // For URL parameters (jobIdFromUrl), we'll navigate to dashboard in the useEffect
+        if (!jobIdFromUrl) {
+          // Get profiles and find the first one with "New" status
+          const firstNewProfile = result.find(profile => profile.status === "New");
+          
+          if (firstNewProfile) {
+            console.log("Navigating to first new profile:", firstNewProfile.id);
+            // Navigate directly to the profile view page if we have a "New" status profile
+            navigate(`/profile/${firstNewProfile.id}`);
+          } else if (result.length > 0) {
+            console.log("No new profiles found, navigating to first profile:", result[0].id);
+            // Navigate to the first profile if no new profiles found
+            navigate(`/profile/${result[0].id}`);
+          }
         }
         return true;
       }

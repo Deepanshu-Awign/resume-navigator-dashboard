@@ -147,6 +147,8 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     // Use the ref to avoid race conditions
     const currentJobId = jobIdRef.current;
     
+    console.log("fetchProfiles called with jobIdRef:", currentJobId);
+    
     if (!currentJobId) {
       console.log("No jobId provided to fetchProfiles");
       return [];
