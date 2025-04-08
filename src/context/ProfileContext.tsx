@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { ResumeProfile, JobStats } from "@/types";
 import { fetchProfilesFromGoogleSheets } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
@@ -41,7 +41,8 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   // Get auth context to detect logout
   const { user } = useAuth();
   
-  const [jobId, setJobId] = useState<string>("");
+  const [jobId, setJobIdState] = useState<string>("");
+  const jobIdRef = useRef<string>("");
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   
   const [profiles, setProfiles] = useState<ResumeProfile[]>([]);
@@ -50,6 +51,13 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [currentProfileIndex, setCurrentProfileIndex] = useState<number>(0);
   const [profilesCache, setProfilesCache] = useState<Record<string, ResumeProfile[]>>({});
   const [fetchInProgress, setFetchInProgress] = useState<Record<string, boolean>>({});
+
+  // Set jobId both in state and ref to avoid race conditions
+  const setJobId = useCallback((id: string) => {
+    console.log("Setting jobId:", id);
+    jobIdRef.current = id;
+    setJobIdState(id);
+  }, []);
 
   // Initialize jobId from localStorage only once on mount
   useEffect(() => {
@@ -61,7 +69,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     }
     
     setInitialLoadDone(true);
-  }, []);
+  }, [setJobId]);
 
   // Calculate stats from profiles
   const stats: JobStats = {
@@ -119,10 +127,10 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     );
     
     // Also update cache
-    if (jobId && profilesCache[jobId]) {
+    if (jobIdRef.current && profilesCache[jobIdRef.current]) {
       setProfilesCache(prevCache => ({
         ...prevCache,
-        [jobId]: prevCache[jobId].map(profile => 
+        [jobIdRef.current]: prevCache[jobIdRef.current].map(profile => 
           profile.id === id ? { ...profile, status } : profile
         )
       }));
@@ -135,52 +143,57 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     setCurrentProfileIndex(0);
   };
 
-  const fetchProfiles = async (): Promise<ResumeProfile[]> => {
-    if (!jobId) {
+  const fetchProfiles = useCallback(async (): Promise<ResumeProfile[]> => {
+    // Use the ref to avoid race conditions
+    const currentJobId = jobIdRef.current;
+    
+    if (!currentJobId) {
       console.log("No jobId provided to fetchProfiles");
       return [];
     }
     
     // If fetch is already in progress for this jobId, return the cached profiles or empty array
-    if (fetchInProgress[jobId]) {
-      console.log("Fetch already in progress for jobId:", jobId);
-      return profilesCache[jobId] || [];
+    if (fetchInProgress[currentJobId]) {
+      console.log("Fetch already in progress for jobId:", currentJobId);
+      return profilesCache[currentJobId] || [];
     }
     
     setLoading(true);
-    setFetchInProgress(prev => ({ ...prev, [jobId]: true }));
+    setFetchInProgress(prev => ({ ...prev, [currentJobId]: true }));
     
     try {
-      console.log("Fetching profiles for jobId:", jobId);
+      console.log("Fetching profiles for jobId:", currentJobId);
       
       // Check cache first
-      if (profilesCache[jobId] && profilesCache[jobId].length > 0) {
-        console.log("Using cached profiles for jobId:", jobId, "count:", profilesCache[jobId].length);
-        setProfiles(profilesCache[jobId]);
+      if (profilesCache[currentJobId] && profilesCache[currentJobId].length > 0) {
+        console.log("Using cached profiles for jobId:", currentJobId, "count:", profilesCache[currentJobId].length);
+        setProfiles(profilesCache[currentJobId]);
         setLoading(false);
-        setFetchInProgress(prev => ({ ...prev, [jobId]: false }));
-        return profilesCache[jobId];
+        setFetchInProgress(prev => ({ ...prev, [currentJobId]: false }));
+        return profilesCache[currentJobId];
+      } else {
+        console.log("No cached profiles found for jobId:", currentJobId, "- fetching fresh");
       }
       
-      const data = await fetchProfilesFromGoogleSheets(jobId);
+      const data = await fetchProfilesFromGoogleSheets(currentJobId);
       console.log("Fetched profiles:", data);
       
       if (data && data.length > 0) {
         // Update cache with the fetched profiles
         setProfilesCache(prev => ({
           ...prev,
-          [jobId]: data
+          [currentJobId]: data
         }));
         
         // Update current profiles in state
         setProfiles(data);
         
         // Save jobId to localStorage only if profiles were found
-        localStorage.setItem("jobId", jobId);
+        localStorage.setItem("jobId", currentJobId);
         
         return data;
       } else {
-        console.log("No profiles found for jobId:", jobId);
+        console.log("No profiles found for jobId:", currentJobId);
         return [];
       }
     } catch (error) {
@@ -193,9 +206,9 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       return [];
     } finally {
       setLoading(false);
-      setFetchInProgress(prev => ({ ...prev, [jobId]: false }));
+      setFetchInProgress(prev => ({ ...prev, [currentJobId]: false }));
     }
-  };
+  }, [fetchInProgress, profilesCache]);
 
   // Only load profiles from cache when jobId changes AND initialLoadDone is true
   useEffect(() => {
@@ -212,7 +225,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     if (jobId) {
       loadProfilesFromCache();
     }
-  }, [jobId, initialLoadDone]);
+  }, [jobId, initialLoadDone, profilesCache]);
 
   // Clear everything when user logs out
   useEffect(() => {
@@ -224,7 +237,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       setProfilesCache({});
       localStorage.removeItem("jobId");
     }
-  }, [user]);
+  }, [user, setJobId]);
   
   // Reset profile index when active category changes
   useEffect(() => {

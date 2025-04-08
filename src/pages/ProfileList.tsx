@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
 import Header from "@/components/Header";
 import ProfileCard from "@/components/ProfileCard";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ProfileList = () => {
   const { category } = useParams<{ category: string }>();
@@ -36,15 +37,6 @@ const ProfileList = () => {
     }
   };
 
-  const getCategoryCount = () => {
-    switch (category) {
-      case "pending": return stats.new;
-      case "shortlisted": return stats.shortlisted;
-      case "rejected": return stats.rejected;
-      default: return filteredProfiles.length;
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -60,10 +52,40 @@ const ProfileList = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header title={getCategoryTitle()} showBackButton backTo="/dashboard" />
       
+      <div className="sticky top-16 z-10 bg-white border-b border-gray-200 shadow-sm">
+        <div className="container mx-auto">
+          <Tabs value={category} className="w-full">
+            <TabsList className="w-full justify-start overflow-x-auto p-0">
+              <TabsTrigger 
+                value="pending" 
+                onClick={() => navigate("/profiles/pending")}
+                className="flex-1"
+              >
+                Pending ({stats.new})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="shortlisted" 
+                onClick={() => navigate("/profiles/shortlisted")}
+                className="flex-1"
+              >
+                Shortlisted ({stats.shortlisted})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="rejected" 
+                onClick={() => navigate("/profiles/rejected")}
+                className="flex-1"
+              >
+                Rejected ({stats.rejected})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+      
       <div className="container mx-auto p-4 flex-1">
         <div className="mb-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold">
-            {getCategoryTitle()} ({getCategoryCount()})
+            {getCategoryTitle()}
           </h2>
         </div>
         

@@ -92,6 +92,8 @@ const Index = () => {
           description: `No profiles were found for Job ID: ${id}. Please check the ID and try again.`,
           variant: "destructive",
         });
+        fetchingRef.current = false;
+        setLoading(false);
         return;
       }
       

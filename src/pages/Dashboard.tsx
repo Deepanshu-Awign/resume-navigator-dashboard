@@ -40,19 +40,19 @@ const Dashboard = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard 
-            title="Pending" 
+            title={`Pending (${stats.new})`}
             count={stats.new} 
             color="bg-blue-50 border-blue-200"
             onClick={() => handleCardClick("pending")} 
           />
           <StatCard 
-            title="Shortlisted" 
+            title={`Shortlisted (${stats.shortlisted})`}
             count={stats.shortlisted} 
             color="bg-green-50 border-green-200"
             onClick={() => handleCardClick("shortlisted")} 
           />
           <StatCard 
-            title="Rejected" 
+            title={`Rejected (${stats.rejected})`}
             count={stats.rejected} 
             color="bg-red-50 border-red-200"
             onClick={() => handleCardClick("rejected")} 
