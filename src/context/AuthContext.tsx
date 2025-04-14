@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // First set up auth state change listener to catch any auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log("Auth state changed:", event);
         
         // Update session state
@@ -43,6 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log("User authenticated:", newSession.user.email);
           setUser(newSession.user);
           setIsAdmin(true);
+          localStorage.setItem('authSession', JSON.stringify(newSession));
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out");
           setUser(null);
@@ -50,6 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Clear storage on signout
           localStorage.removeItem('mockUser');
           localStorage.removeItem('jobId');
+          localStorage.removeItem('authSession');
         }
       }
     );
@@ -57,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Then check for existing session
     const initializeAuth = async () => {
       try {
+        // First try to get session from Supabase
         const { data: { session: existingSession } } = await supabase.auth.getSession();
         
         if (existingSession?.user) {
@@ -64,18 +67,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(existingSession.user);
           setSession(existingSession);
           setIsAdmin(true);
+          localStorage.setItem('authSession', JSON.stringify(existingSession));
         } else {
-          // Fallback to mockUser in localStorage for development
-          const storedUser = localStorage.getItem('mockUser');
-          if (storedUser) {
+          // Check for saved session in localStorage as backup
+          const storedSession = localStorage.getItem('authSession');
+          if (storedSession) {
             try {
-              const parsedUser = JSON.parse(storedUser);
-              console.log("Using mock user from localStorage:", parsedUser.email);
-              setUser(parsedUser);
+              const parsedSession = JSON.parse(storedSession);
+              console.log("Using stored session for:", parsedSession.user.email);
+              setUser(parsedSession.user);
+              setSession(parsedSession);
               setIsAdmin(true);
             } catch (e) {
-              console.error("Invalid stored user:", e);
-              localStorage.removeItem('mockUser');
+              console.error("Invalid stored session:", e);
+              localStorage.removeItem('authSession');
+            }
+          } else {
+            // Fallback to mockUser in localStorage for development
+            const storedUser = localStorage.getItem('mockUser');
+            if (storedUser) {
+              try {
+                const parsedUser = JSON.parse(storedUser);
+                console.log("Using mock user from localStorage:", parsedUser.email);
+                setUser(parsedUser);
+                setIsAdmin(true);
+                // Save to authSession as well for consistency
+                localStorage.setItem('authSession', JSON.stringify({user: parsedUser}));
+              } catch (e) {
+                console.error("Invalid stored user:", e);
+                localStorage.removeItem('mockUser');
+              }
             }
           }
         }
@@ -115,7 +136,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           };
           setUser(mockUser);
           setIsAdmin(true);
+          
+          // Store both in localStorage for persistence
           localStorage.setItem('mockUser', JSON.stringify(mockUser));
+          localStorage.setItem('authSession', JSON.stringify({user: mockUser}));
           
           toast({
             title: "Success",
@@ -131,6 +155,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(data.user);
         setSession(data.session);
         setIsAdmin(true);
+        
+        // Store session in localStorage
+        localStorage.setItem('authSession', JSON.stringify(data.session));
         
         toast({
           title: "Success",
@@ -163,6 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear localStorage items
       localStorage.removeItem('mockUser');
       localStorage.removeItem('jobId');
+      localStorage.removeItem('authSession');
       
       toast({
         title: "Success",

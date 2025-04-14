@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
-import { updateProfileStatus, downloadResume as downloadResumeFile } from "@/services/api";
+import { updateProfileStatus } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
 import { PDFObject } from "@/components/PDFObject";
 import { Menu, User, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
@@ -132,25 +133,6 @@ const ProfileViewer = () => {
     setConfirmAction(action);
   };
 
-  const downloadResume = () => {
-    if (!profile?.pdfUrl) {
-      toast({
-        title: "Error",
-        description: "No resume URL available for download.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    console.log("Downloading resume from URL:", profile.pdfUrl);
-    downloadResumeFile(profile);
-    
-    toast({
-      title: "Download started",
-      description: `${profile.name}'s resume is being downloaded.`,
-    });
-  };
-
   const handleConfirmAction = async () => {
     if (!profile || !profile.id || !confirmAction) return;
     
@@ -165,10 +147,6 @@ const ProfileViewer = () => {
           title: "Success",
           description: `Profile ${status.toLowerCase()} successfully.`,
         });
-        
-        if (confirmAction === "shortlist") {
-          downloadResume();
-        }
         
         const currentCatProfiles = getCategoryProfiles(activeCategory);
         const filteredProfiles = currentCatProfiles.filter(p => p.id !== profile.id);

@@ -1,13 +1,14 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
-import { updateProfileStatus, downloadResume as downloadResumeFile } from "@/services/api";
+import { updateProfileStatus } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { PDFObject } from "@/components/PDFObject";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const ProfileDetail = () => {
@@ -72,27 +73,6 @@ const ProfileDetail = () => {
     setConfirmAction(action);
   };
 
-  const downloadResume = () => {
-    console.log("Downloading resume");
-    if (!profile?.pdfUrl) {
-      console.log("No PDF URL found");
-      toast({
-        title: "Error",
-        description: "No resume URL available for download.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    console.log("Calling downloadResumeFile with URL:", profile.pdfUrl);
-    downloadResumeFile(profile);
-    
-    toast({
-      title: "Download started",
-      description: `${profile.name}'s resume is being downloaded.`,
-    });
-  };
-
   const handleConfirmAction = async () => {
     console.log(`Profile Detail - Confirming ${confirmAction} action`);
     if (!profile || !profile.id || !confirmAction) {
@@ -113,11 +93,6 @@ const ProfileDetail = () => {
           title: "Success",
           description: `Resume ${status.toLowerCase()} successfully.`,
         });
-        
-        if (confirmAction === "shortlist") {
-          console.log("Shortlisted, downloading resume");
-          downloadResume();
-        }
         
         const newProfiles = filteredProfiles.filter(p => p.status === "New");
         const currentNewIndex = profile ? newProfiles.findIndex(p => p.id === profile.id) : -1;
@@ -228,19 +203,6 @@ const ProfileDetail = () => {
             <PDFObject url={profile.pdfUrl} />
           </div>
         </div>
-
-        {isMobile && (
-          <div className="mb-16">
-            <Button 
-              onClick={downloadResume}
-              variant="outline" 
-              className="w-full mb-4" 
-              disabled={loading}
-            >
-              <Download className="mr-2 h-4 w-4" /> Download Resume
-            </Button>
-          </div>
-        )}
       </div>
       
       <div className={`fixed bottom-0 left-0 right-0 bg-white shadow-md ${isMobile ? 'p-3 pb-6' : 'p-4'}`}>
