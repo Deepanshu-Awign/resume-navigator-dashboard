@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
@@ -60,15 +59,54 @@ const ProfileViewer = () => {
       return;
     }
 
+    if (stats.all === 0) {
+      navigate("/dashboard");
+      return;
+    }
+
     if (category && !id) {
       setActiveCategory(category as "all" | "pending" | "shortlisted" | "rejected");
       
       const categoryProfiles = getCategoryProfiles(category);
       if (categoryProfiles.length > 0) {
         navigate(`/profile/${categoryProfiles[0].id}`);
+      } else {
+        if (activeCategory === "pending" && stats.new === 0) {
+          if (stats.shortlisted > 0) {
+            setActiveCategory("shortlisted");
+            navigate("/profiles/shortlisted");
+          } else if (stats.rejected > 0) {
+            setActiveCategory("rejected");
+            navigate("/profiles/rejected");
+          } else {
+            navigate("/dashboard");
+          }
+        } else if (activeCategory === "shortlisted" && stats.shortlisted === 0) {
+          if (stats.new > 0) {
+            setActiveCategory("pending");
+            navigate("/profiles/pending");
+          } else if (stats.rejected > 0) {
+            setActiveCategory("rejected");
+            navigate("/profiles/rejected");
+          } else {
+            navigate("/dashboard");
+          }
+        } else if (activeCategory === "rejected" && stats.rejected === 0) {
+          if (stats.new > 0) {
+            setActiveCategory("pending");
+            navigate("/profiles/pending");
+          } else if (stats.shortlisted > 0) {
+            setActiveCategory("shortlisted");
+            navigate("/profiles/shortlisted");
+          } else {
+            navigate("/dashboard");
+          }
+        } else {
+          navigate("/dashboard");
+        }
       }
     }
-  }, [jobId, id, category, navigate]);
+  }, [jobId, id, category, navigate, activeCategory, stats]);
   
   const profile = id 
     ? profiles.find(p => p.id === id) 
@@ -97,11 +135,17 @@ const ProfileViewer = () => {
       return;
     }
 
+    if (stats.all === 0) {
+      navigate("/dashboard");
+      return;
+    }
+
     if (!profile && profiles.length > 0) {
       const catProfiles = getCategoryProfiles(activeCategory);
+      
       if (catProfiles.length > 0) {
         navigate(`/profile/${catProfiles[0].id}`);
-      } else if (profiles.length > 0) {
+      } else {
         if (pendingProfiles.length > 0) {
           setActiveCategory("pending");
           navigate(`/profile/${pendingProfiles[0].id}`);
@@ -111,12 +155,12 @@ const ProfileViewer = () => {
         } else if (rejectedProfiles.length > 0) {
           setActiveCategory("rejected");
           navigate(`/profile/${rejectedProfiles[0].id}`);
+        } else {
+          navigate("/dashboard");
         }
-      } else {
-        navigate("/");
       }
     }
-  }, [profile, profiles, jobId, navigate, activeCategory]);
+  }, [profile, profiles, jobId, navigate, activeCategory, stats]);
   
   const handleTabChange = (value: string) => {
     setActiveCategory(value as "pending" | "shortlisted" | "rejected");
@@ -125,6 +169,8 @@ const ProfileViewer = () => {
     
     if (targetProfiles.length > 0) {
       navigate(`/profile/${targetProfiles[0].id}`);
+    } else {
+      navigate(`/profiles/${value}`);
     }
   };
 
@@ -215,7 +261,13 @@ const ProfileViewer = () => {
   if (!profile) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-        <p className="text-lg text-gray-500">Loading profile...</p>
+        <div className="text-center p-4">
+          <h2 className="text-xl font-semibold mb-2">No Profile Available</h2>
+          <p className="text-gray-500 mb-4">There is no profile to display in this category.</p>
+          <Button onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }

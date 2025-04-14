@@ -16,8 +16,18 @@ const Dashboard = () => {
   }, [jobId, navigate]);
 
   const handleCardClick = (category: "pending" | "shortlisted" | "rejected") => {
-    setActiveCategory(category);
-    navigate(`/profiles/${category}`);
+    // Only navigate if there are profiles in this category
+    if ((category === "pending" && stats.new > 0) ||
+        (category === "shortlisted" && stats.shortlisted > 0) ||
+        (category === "rejected" && stats.rejected > 0)) {
+      setActiveCategory(category);
+      navigate(`/profiles/${category}`);
+    } else {
+      // Show a toast or message that there are no profiles in this category
+      // For now, we'll just navigate to the category page which will show "No profiles"
+      setActiveCategory(category);
+      navigate(`/profiles/${category}`);
+    }
   };
 
   if (loading) {
@@ -88,4 +98,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-

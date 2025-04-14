@@ -132,4 +132,3 @@ const ProfileList = () => {
 };
 
 export default ProfileList;
-
