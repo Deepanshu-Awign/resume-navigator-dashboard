@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { ResumeProfile, JobStats } from "@/types";
 import { fetchProfilesFromGoogleSheets } from "@/services/api";
@@ -171,6 +172,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
         console.log("No cached profiles found for jobId:", currentJobId, "- fetching fresh");
       }
       
+      // Fetch profiles from Supabase (service now prioritizes Supabase over Google Sheets)
       const data = await fetchProfilesFromGoogleSheets(currentJobId);
       console.log("Fetched profiles:", data);
       

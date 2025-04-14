@@ -1,6 +1,5 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getCurrentUser, signIn, signOut } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,30 +27,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
-    // Set up the auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.email);
-        if (session?.user) {
-          setUser(session.user);
-          setIsAdmin(true);
-          // Store mock user in sessionStorage for persistence
-          sessionStorage.setItem('mockUser', JSON.stringify(session.user));
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setIsAdmin(false);
-          // Remove mock user from sessionStorage
-          sessionStorage.removeItem('mockUser');
-          // Clear job ID from localStorage for full reset
-          localStorage.removeItem('jobId');
-        }
-      }
-    );
-
-    // Check for existing session
+    // First check for existing session
     const initializeAuth = async () => {
       try {
-        // First, check Supabase auth
+        // Check Supabase auth
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
@@ -82,6 +61,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initializeAuth();
+
+    // Set up the auth state listener AFTER checking for existing session
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
+        if (session?.user) {
+          setUser(session.user);
+          setIsAdmin(true);
+          // Store mock user in sessionStorage for persistence
+          sessionStorage.setItem('mockUser', JSON.stringify(session.user));
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setIsAdmin(false);
+          // Remove mock user from sessionStorage
+          sessionStorage.removeItem('mockUser');
+          // Clear job ID from localStorage for full reset
+          localStorage.removeItem('jobId');
+        }
+      }
+    );
 
     return () => {
       subscription.unsubscribe();

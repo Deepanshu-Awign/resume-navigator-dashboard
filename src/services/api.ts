@@ -107,39 +107,63 @@ export const fetchProfilesFromGoogleSheetsOriginal = async (jobId: string): Prom
 // Main function to fetch profiles - tries Supabase first, then falls back to Google Sheets
 export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<ResumeProfile[]> => {
   try {
-    // First try to get data from Supabase
-    const supabaseProfiles = await fetchProfilesFromSupabase(jobId);
+    console.log("Fetching profiles from Supabase for jobId:", jobId);
     
-    // If we got profiles from Supabase, return them
-    if (supabaseProfiles.length > 0) {
-      console.log(`Using ${supabaseProfiles.length} profiles from Supabase for jobId:`, jobId);
-      return supabaseProfiles;
+    // Attempt to fetch directly from Supabase first
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*')
+      .eq('job_id', jobId);
+    
+    if (error) {
+      console.error("Error fetching from Supabase:", error);
+      // If Supabase query fails, fall back to Google Sheets
+      console.log("Falling back to Google Sheets due to Supabase error");
+      return fetchProfilesFromGoogleSheetsOriginal(jobId);
     }
     
-    // If no profiles found in Supabase, try Google Sheets as fallback
-    console.log("No profiles found in Supabase, trying Google Sheets as fallback");
-    const googleSheetProfiles = await fetchProfilesFromGoogleSheetsOriginal(jobId);
-    
-    // If we found profiles in Google Sheets, save them to Supabase for future use
-    if (googleSheetProfiles.length > 0) {
-      console.log(`Importing ${googleSheetProfiles.length} profiles from Google Sheets to Supabase`);
+    if (data && data.length > 0) {
+      console.log(`Found ${data.length} profiles in Supabase for jobId:`, jobId);
       
-      // Import each profile to Supabase
-      for (const profile of googleSheetProfiles) {
-        await uploadResume({
-          jobId: profile.jobId,
-          name: profile.name,
-          email: profile.email,
-          status: profile.status,
-          pdfUrl: profile.pdfUrl
-        });
+      // Map the Supabase data structure to our ResumeProfile interface
+      const profiles: ResumeProfile[] = data.map(item => ({
+        id: item.id,
+        jobId: item.job_id,
+        name: item.name,
+        email: item.email,
+        status: item.status as "New" | "Shortlisted" | "Rejected",
+        pdfUrl: item.pdf_url || ""
+      }));
+      
+      return profiles;
+    } else {
+      console.log("No profiles found in Supabase, trying Google Sheets as fallback");
+      
+      // Try to get data from Google Sheets
+      const googleSheetProfiles = await fetchProfilesFromGoogleSheetsOriginal(jobId);
+      
+      // If we found profiles in Google Sheets, import them to Supabase for future use
+      if (googleSheetProfiles.length > 0) {
+        console.log(`Importing ${googleSheetProfiles.length} profiles from Google Sheets to Supabase`);
+        
+        // Import each profile to Supabase
+        for (const profile of googleSheetProfiles) {
+          await uploadResume({
+            jobId: profile.jobId,
+            name: profile.name,
+            email: profile.email,
+            status: profile.status,
+            pdfUrl: profile.pdfUrl
+          });
+        }
       }
+      
+      return googleSheetProfiles;
     }
-    
-    return googleSheetProfiles;
   } catch (error) {
     console.error("Error in fetchProfilesFromGoogleSheets:", error);
-    return [];
+    // Final fallback to Google Sheets
+    return fetchProfilesFromGoogleSheetsOriginal(jobId);
   }
 };
 
@@ -371,18 +395,21 @@ export const downloadResume = (profile: ResumeProfile): void => {
     }
   }
   
-  // Create an invisible iframe to handle the download without opening a new tab
-  const downloadFrame = document.createElement('iframe');
-  downloadFrame.style.display = 'none';
-  document.body.appendChild(downloadFrame);
+  // Create a link element and trigger a direct download
+  const downloadLink = document.createElement('a');
+  downloadLink.href = downloadUrl;
+  downloadLink.setAttribute('download', `${profile.name}_resume.pdf`);
+  downloadLink.setAttribute('target', '_blank');
+  downloadLink.style.display = 'none';
+  document.body.appendChild(downloadLink);
   
-  // Set the source to the download URL
-  downloadFrame.src = downloadUrl;
+  // Click the link to trigger download
+  downloadLink.click();
   
-  // Remove the frame after a delay
+  // Clean up
   setTimeout(() => {
-    document.body.removeChild(downloadFrame);
-  }, 2000);
+    document.body.removeChild(downloadLink);
+  }, 100);
 };
 
 // Authentication functions with Supabase
