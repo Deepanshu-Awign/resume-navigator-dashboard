@@ -108,72 +108,45 @@ export const fetchProfilesFromGoogleSheetsOriginal = async (jobId: string): Prom
 
 // Main function to fetch profiles - tries Supabase first, then falls back to Google Sheets
 export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<ResumeProfile[]> => {
+  console.log("fetchProfilesFromGoogleSheets called with jobId:", jobId);
+  
   try {
-    console.log("=== MAIN FETCH PROFILES FUNCTION ===");
-    console.log("Fetching profiles from Supabase for jobId:", jobId);
+    // Always try Supabase first
+    console.log("Attempting to fetch profiles from Supabase");
+    const supabaseProfiles = await fetchProfilesFromSupabase(jobId);
     
-    // Attempt to fetch directly from Supabase first
-    const { data, error } = await supabase
-      .from('resumes')
-      .select('*')
-      .eq('job_id', jobId);
-    
-    if (error) {
-      console.error("Error fetching from Supabase:", error);
-      // If Supabase query fails, fall back to Google Sheets
-      console.log("Falling back to Google Sheets due to Supabase error");
-      return fetchProfilesFromGoogleSheetsOriginal(jobId);
+    if (supabaseProfiles && supabaseProfiles.length > 0) {
+      console.log(`Found ${supabaseProfiles.length} profiles in Supabase`);
+      return supabaseProfiles;
     }
     
-    if (data && data.length > 0) {
-      console.log(`Found ${data.length} profiles in Supabase for jobId:`, jobId);
+    // If no profiles in Supabase, try Google Sheets as fallback
+    console.log("No profiles found in Supabase, falling back to Google Sheets");
+    const googleSheetProfiles = await fetchProfilesFromGoogleSheetsOriginal(jobId);
+    
+    // If we found profiles in Google Sheets, import them to Supabase
+    if (googleSheetProfiles.length > 0) {
+      console.log(`Importing ${googleSheetProfiles.length} profiles from Google Sheets to Supabase`);
       
-      // Map the Supabase data structure to our ResumeProfile interface
-      const profiles: ResumeProfile[] = data.map(item => ({
-        id: item.id,
-        jobId: item.job_id,
-        name: item.name,
-        email: item.email,
-        status: item.status as "New" | "Shortlisted" | "Rejected",
-        pdfUrl: item.pdf_url || ""
-      }));
-      
-      console.log("Returning profiles from Supabase");
-      return profiles;
-    } else {
-      console.log("No profiles found in Supabase, trying Google Sheets as fallback");
-      
-      // Try to get data from Google Sheets
-      const googleSheetProfiles = await fetchProfilesFromGoogleSheetsOriginal(jobId);
-      
-      // If we found profiles in Google Sheets, import them to Supabase for future use
-      if (googleSheetProfiles.length > 0) {
-        console.log(`Importing ${googleSheetProfiles.length} profiles from Google Sheets to Supabase`);
-        
-        // Import each profile to Supabase
-        for (const profile of googleSheetProfiles) {
-          await uploadResume({
-            jobId: profile.jobId,
-            name: profile.name,
-            email: profile.email,
-            status: profile.status,
-            pdfUrl: profile.pdfUrl
-          });
-        }
-
-        console.log("Successfully imported profiles to Supabase");
+      for (const profile of googleSheetProfiles) {
+        await uploadResume({
+          jobId: profile.jobId,
+          name: profile.name,
+          email: profile.email,
+          status: profile.status,
+          pdfUrl: profile.pdfUrl
+        });
       }
       
-      console.log("Returning profiles from Google Sheets");
-      return googleSheetProfiles;
+      console.log("Profiles successfully imported to Supabase");
     }
+    
+    return googleSheetProfiles;
   } catch (error) {
     console.error("Error in fetchProfilesFromGoogleSheets:", error);
-    // Final fallback to Google Sheets
-    console.log("Exception caught, falling back to Google Sheets");
-    return fetchProfilesFromGoogleSheetsOriginal(jobId);
+    return [];
   }
-};
+}
 
 // Function to update profile status
 export const updateProfileStatus = async (id: string, status: "Shortlisted" | "Rejected"): Promise<boolean> => {
@@ -389,56 +362,31 @@ export const convertResumesToCsv = (resumes: ResumeProfile[]): string => {
 
 // Fix the resume PDF download issue
 export const downloadResume = (profile: ResumeProfile): void => {
-  console.log("=== DOWNLOAD RESUME ===");
   if (!profile?.pdfUrl) {
-    console.log("No PDF URL provided for download");
+    console.error("No PDF URL provided for download");
     return;
   }
   
   let downloadUrl = profile.pdfUrl;
-  console.log("Original download URL:", downloadUrl);
+  console.log("Downloading resume from URL:", downloadUrl);
   
-  // If it's a Google Docs URL, make it download directly
+  // Handle Google Docs URLs
   if (downloadUrl.includes('docs.google.com/document')) {
-    // Replace /edit or /preview with /export?format=pdf
     downloadUrl = downloadUrl.replace(/\/(edit|preview).*$/, '/export?format=pdf');
-    
-    // Add direct download parameter to bypass Google account selection
-    downloadUrl += '&autodownload=1';
-    console.log("Modified Google Docs URL:", downloadUrl);
   }
   else if (downloadUrl.includes('drive.google.com/file/d/')) {
-    // Extract file ID from Google Drive URL
     const fileIdMatch = downloadUrl.match(/\/d\/([^\/]+)\//);
     if (fileIdMatch && fileIdMatch[1]) {
       const fileId = fileIdMatch[1];
-      // Format for direct download without Google account selection
-      downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
-      console.log("Modified Google Drive URL:", downloadUrl);
+      downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
     }
   }
   
-  console.log("Final download URL:", downloadUrl);
+  // For direct file downloads
+  window.open(downloadUrl, '_blank');
   
-  // Create a link element and trigger a direct download
-  console.log("Creating and clicking download link");
-  const downloadLink = document.createElement('a');
-  downloadLink.href = downloadUrl;
-  downloadLink.setAttribute('download', `${profile.name}_resume.pdf`);
-  downloadLink.setAttribute('target', '_blank');
-  downloadLink.style.display = 'none';
-  document.body.appendChild(downloadLink);
-  
-  // Click the link to trigger download
-  downloadLink.click();
-  console.log("Download link clicked");
-  
-  // Clean up
-  setTimeout(() => {
-    document.body.removeChild(downloadLink);
-    console.log("Download link removed from DOM");
-  }, 100);
-};
+  console.log("Download initiated with URL:", downloadUrl);
+}
 
 // Authentication functions with Supabase
 export const signIn = async (email: string, password: string) => {

@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { ResumeProfile, JobStats } from "@/types";
 import { fetchProfilesFromGoogleSheets, fetchProfilesFromSupabase } from "@/services/api";
@@ -146,20 +145,17 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     setCurrentProfileIndex(0);
   };
 
-  // Prioritize Supabase data source
   const fetchProfiles = useCallback(async (): Promise<ResumeProfile[]> => {
-    console.log("=== FETCH PROFILES CALLED ===");
+    console.log("fetchProfiles called with jobId:", jobIdRef.current);
     const currentJobId = jobIdRef.current;
     
-    console.log("fetchProfiles called with jobIdRef:", currentJobId);
-    
     if (!currentJobId) {
-      console.log("No jobId provided to fetchProfiles");
+      console.log("No jobId provided");
       return [];
     }
     
     if (fetchInProgress[currentJobId]) {
-      console.log("Fetch already in progress for jobId:", currentJobId);
+      console.log("Fetch already in progress");
       return profilesCache[currentJobId] || [];
     }
     
@@ -167,64 +163,50 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     setFetchInProgress(prev => ({ ...prev, [currentJobId]: true }));
     
     try {
-      console.log("Fetching profiles for jobId:", currentJobId);
-      
       if (profilesCache[currentJobId] && profilesCache[currentJobId].length > 0) {
-        console.log("Using cached profiles for jobId:", currentJobId, "count:", profilesCache[currentJobId].length);
+        console.log("Using cached profiles");
         setProfiles(profilesCache[currentJobId]);
-        setLoading(false);
-        setFetchInProgress(prev => ({ ...prev, [currentJobId]: false }));
         return profilesCache[currentJobId];
-      } else {
-        console.log("No cached profiles found for jobId:", currentJobId, "- fetching fresh");
       }
       
-      // Try Supabase first
-      console.log("Trying to fetch from Supabase first");
+      console.log("Fetching from Supabase");
       const supabaseProfiles = await fetchProfilesFromSupabase(currentJobId);
       
       if (supabaseProfiles && supabaseProfiles.length > 0) {
         console.log(`Found ${supabaseProfiles.length} profiles in Supabase`);
+        
         setProfilesCache(prev => ({
           ...prev,
           [currentJobId]: supabaseProfiles
         }));
         
         setProfiles(supabaseProfiles);
-        console.log("Using data from Supabase");
-        
         localStorage.setItem("jobId", currentJobId);
         
         return supabaseProfiles;
-      } else {
-        console.log("No profiles found in Supabase, trying Google Sheets");
-        // Fall back to the original function which now prioritizes Supabase
-        const data = await fetchProfilesFromGoogleSheets(currentJobId);
-        console.log("Fetched profiles:", data.length);
-        
-        if (data && data.length > 0) {
-          setProfilesCache(prev => ({
-            ...prev,
-            [currentJobId]: data
-          }));
-          
-          setProfiles(data);
-          
-          localStorage.setItem("jobId", currentJobId);
-          
-          return data;
-        } else {
-          console.log("No profiles found for jobId:", currentJobId);
-          return [];
-        }
       }
+      
+      console.log("No profiles found in Supabase, trying combined fetch");
+      const profiles = await fetchProfilesFromGoogleSheets(currentJobId);
+      
+      if (profiles && profiles.length > 0) {
+        console.log(`Found ${profiles.length} profiles from combined sources`);
+        
+        setProfilesCache(prev => ({
+          ...prev,
+          [currentJobId]: profiles
+        }));
+        
+        setProfiles(profiles);
+        localStorage.setItem("jobId", currentJobId);
+        
+        return profiles;
+      }
+      
+      console.log("No profiles found from any source");
+      return [];
     } catch (error) {
       console.error("Error fetching profiles:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch profiles. Please try again.",
-        variant: "destructive",
-      });
       return [];
     } finally {
       setLoading(false);

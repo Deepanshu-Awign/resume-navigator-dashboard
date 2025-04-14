@@ -133,8 +133,16 @@ const ProfileViewer = () => {
   };
 
   const downloadResume = () => {
-    if (!profile?.pdfUrl) return;
+    if (!profile?.pdfUrl) {
+      toast({
+        title: "Error",
+        description: "No resume URL available for download.",
+        variant: "destructive",
+      });
+      return;
+    }
     
+    console.log("Downloading resume from URL:", profile.pdfUrl);
     downloadResumeFile(profile);
     
     toast({

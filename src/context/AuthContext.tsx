@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
   user: any;
@@ -25,83 +26,70 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    console.log("=== AUTH PROVIDER INITIALIZATION ===");
+    console.log("AuthProvider initializing");
     
-    // First check for existing session
-    const initializeAuth = async () => {
-      console.log("Initializing auth - checking for existing session");
-      try {
-        // Check Supabase auth
-        const { data: { session } } = await supabase.auth.getSession();
+    // First set up auth state change listener to catch any auth events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        console.log("Auth state changed:", event);
         
-        console.log("Supabase session check result:", session ? "Session found" : "No session found");
+        // Update session state
+        setSession(newSession);
         
-        if (session?.user) {
-          console.log("Valid Supabase session found:", session.user.email);
-          setUser(session.user);
+        if (newSession?.user) {
+          console.log("User authenticated:", newSession.user.email);
+          setUser(newSession.user);
           setIsAdmin(true);
-          localStorage.setItem('mockUser', JSON.stringify(session.user));
-          console.log("User state set from Supabase session");
+        } else if (event === 'SIGNED_OUT') {
+          console.log("User signed out");
+          setUser(null);
+          setIsAdmin(false);
+          // Clear storage on signout
+          localStorage.removeItem('mockUser');
+          localStorage.removeItem('jobId');
+        }
+      }
+    );
+
+    // Then check for existing session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        
+        if (existingSession?.user) {
+          console.log("Found existing session for:", existingSession.user.email);
+          setUser(existingSession.user);
+          setSession(existingSession);
+          setIsAdmin(true);
         } else {
-          // Fallback to our mock authentication
-          console.log("No Supabase session, checking localStorage for mockUser");
+          // Fallback to mockUser in localStorage for development
           const storedUser = localStorage.getItem('mockUser');
           if (storedUser) {
             try {
               const parsedUser = JSON.parse(storedUser);
-              console.log("Mock user found in localStorage:", parsedUser.email);
+              console.log("Using mock user from localStorage:", parsedUser.email);
               setUser(parsedUser);
               setIsAdmin(true);
-              console.log("User state set from localStorage mockUser");
             } catch (e) {
-              console.error("Error parsing stored user:", e);
+              console.error("Invalid stored user:", e);
               localStorage.removeItem('mockUser');
-              console.log("Removed invalid mockUser from localStorage");
             }
-          } else {
-            console.log("No mockUser found in localStorage");
           }
         }
       } catch (error) {
         console.error("Error getting session:", error);
       } finally {
         setLoading(false);
-        console.log("Auth initialization completed, loading set to false");
       }
     };
 
     initializeAuth();
 
-    // Set up the auth state listener AFTER checking for existing session
-    console.log("Setting up Supabase auth state change listener");
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.email);
-        if (session?.user) {
-          console.log("Setting user from auth state change event");
-          setUser(session.user);
-          setIsAdmin(true);
-          // Store mock user in localStorage for persistence
-          localStorage.setItem('mockUser', JSON.stringify(session.user));
-          console.log("Updated mockUser in localStorage");
-        } else if (event === 'SIGNED_OUT') {
-          console.log("User signed out, clearing user state");
-          setUser(null);
-          setIsAdmin(false);
-          // Remove mock user from localStorage
-          localStorage.removeItem('mockUser');
-          console.log("Removed mockUser from localStorage");
-          // Clear job ID from localStorage for full reset
-          localStorage.removeItem('jobId');
-          console.log("Removed jobId from localStorage");
-        }
-      }
-    );
-
+    // Cleanup subscription on unmount
     return () => {
-      console.log("Auth provider unmounting, unsubscribing from auth state changes");
       subscription.unsubscribe();
     };
   }, []);
@@ -109,19 +97,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     console.log("Login attempt for:", email);
     try {
-      // Try to sign in with Supabase
-      console.log("Attempting Supabase authentication");
+      // Try Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
       if (error) {
-        console.log("Supabase auth failed, error:", error.message);
-        
-        // If Supabase auth fails, fall back to mock auth for development
+        // Fallback to mock auth for development
         if (email === 'admin@example.com' && password === 'password') {
-          console.log("Using mock authentication for admin@example.com");
+          console.log("Using mock authentication");
           const mockUser = {
             id: '123',
             email: 'admin@example.com',
@@ -131,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(mockUser);
           setIsAdmin(true);
           localStorage.setItem('mockUser', JSON.stringify(mockUser));
-          console.log("Mock user stored in localStorage");
+          
           toast({
             title: "Success",
             description: "Logged in successfully with mock account!",
@@ -144,9 +129,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Supabase auth succeeded
         console.log("Supabase auth succeeded for:", data.user?.email);
         setUser(data.user);
+        setSession(data.session);
         setIsAdmin(true);
-        localStorage.setItem('mockUser', JSON.stringify(data.user));
-        console.log("User stored in localStorage");
+        
         toast({
           title: "Success",
           description: "Logged in successfully!",
@@ -168,23 +153,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     console.log("Logout initiated");
     try {
       // Sign out from Supabase
-      console.log("Signing out from Supabase");
       await supabase.auth.signOut();
       
       // Clear user state
-      console.log("Clearing user state");
       setUser(null);
+      setSession(null);
       setIsAdmin(false);
       
-      // Remove mock user from localStorage
-      console.log("Removing mockUser from localStorage");
+      // Clear localStorage items
       localStorage.removeItem('mockUser');
-      
-      // Clear job ID from localStorage to fully reset the app state
-      console.log("Removing jobId from localStorage");
       localStorage.removeItem('jobId');
       
-      console.log("Logout completed successfully");
       toast({
         title: "Success",
         description: "Logged out successfully!",

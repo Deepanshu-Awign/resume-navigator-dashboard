@@ -73,13 +73,18 @@ const ProfileDetail = () => {
   };
 
   const downloadResume = () => {
-    console.log("Profile Detail - Downloading resume");
+    console.log("Downloading resume");
     if (!profile?.pdfUrl) {
-      console.log("No PDF URL found, cannot download");
+      console.log("No PDF URL found");
+      toast({
+        title: "Error",
+        description: "No resume URL available for download.",
+        variant: "destructive",
+      });
       return;
     }
     
-    console.log("Calling downloadResumeFile function with URL:", profile.pdfUrl);
+    console.log("Calling downloadResumeFile with URL:", profile.pdfUrl);
     downloadResumeFile(profile);
     
     toast({
