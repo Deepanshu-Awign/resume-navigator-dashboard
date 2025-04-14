@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { ResumeProfile, JobStats } from "@/types";
-import { fetchProfilesFromGoogleSheets } from "@/services/api";
+import { fetchProfilesFromGoogleSheets, fetchProfilesFromSupabase } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 
@@ -38,6 +38,7 @@ export const useProfiles = () => {
 };
 
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
+  console.log("=== PROFILE PROVIDER INITIALIZATION ===");
   const { user } = useAuth();
   
   const [jobId, setJobIdState] = useState<string>("");
@@ -57,18 +58,22 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     setJobIdState(id);
     
     if (id) {
+      console.log("Storing jobId in localStorage:", id);
       localStorage.setItem("jobId", id);
     }
   }, []);
 
   useEffect(() => {
+    console.log("ProfileProvider mounted, checking for saved jobId");
     const savedJobId = localStorage.getItem("jobId");
     console.log("Initial jobId from localStorage:", savedJobId);
     
     if (savedJobId) {
+      console.log("Using saved jobId from localStorage:", savedJobId);
       setJobId(savedJobId);
     }
     
+    console.log("Initial load complete");
     setInitialLoadDone(true);
   }, [setJobId]);
 
@@ -141,7 +146,9 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     setCurrentProfileIndex(0);
   };
 
+  // Prioritize Supabase data source
   const fetchProfiles = useCallback(async (): Promise<ResumeProfile[]> => {
+    console.log("=== FETCH PROFILES CALLED ===");
     const currentJobId = jobIdRef.current;
     
     console.log("fetchProfiles called with jobIdRef:", currentJobId);
@@ -172,24 +179,44 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
         console.log("No cached profiles found for jobId:", currentJobId, "- fetching fresh");
       }
       
-      // Fetch profiles from Supabase (service now prioritizes Supabase over Google Sheets)
-      const data = await fetchProfilesFromGoogleSheets(currentJobId);
-      console.log("Fetched profiles:", data);
+      // Try Supabase first
+      console.log("Trying to fetch from Supabase first");
+      const supabaseProfiles = await fetchProfilesFromSupabase(currentJobId);
       
-      if (data && data.length > 0) {
+      if (supabaseProfiles && supabaseProfiles.length > 0) {
+        console.log(`Found ${supabaseProfiles.length} profiles in Supabase`);
         setProfilesCache(prev => ({
           ...prev,
-          [currentJobId]: data
+          [currentJobId]: supabaseProfiles
         }));
         
-        setProfiles(data);
+        setProfiles(supabaseProfiles);
+        console.log("Using data from Supabase");
         
         localStorage.setItem("jobId", currentJobId);
         
-        return data;
+        return supabaseProfiles;
       } else {
-        console.log("No profiles found for jobId:", currentJobId);
-        return [];
+        console.log("No profiles found in Supabase, trying Google Sheets");
+        // Fall back to the original function which now prioritizes Supabase
+        const data = await fetchProfilesFromGoogleSheets(currentJobId);
+        console.log("Fetched profiles:", data.length);
+        
+        if (data && data.length > 0) {
+          setProfilesCache(prev => ({
+            ...prev,
+            [currentJobId]: data
+          }));
+          
+          setProfiles(data);
+          
+          localStorage.setItem("jobId", currentJobId);
+          
+          return data;
+        } else {
+          console.log("No profiles found for jobId:", currentJobId);
+          return [];
+        }
       }
     } catch (error) {
       console.error("Error fetching profiles:", error);
@@ -206,6 +233,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchInProgress, profilesCache]);
 
   useEffect(() => {
+    console.log("useEffect for loading profiles - initialLoadDone:", initialLoadDone, "jobId:", jobId);
     if (initialLoadDone && jobId) {
       console.log("Loading profiles for jobId:", jobId);
       
@@ -224,6 +252,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   }, [jobId, initialLoadDone, fetchProfiles, profilesCache]);
 
   useEffect(() => {
+    console.log("useEffect for user:", user?.email || "no user");
     if (!user) {
       console.log("User logged out, clearing all profile state");
       setJobId("");

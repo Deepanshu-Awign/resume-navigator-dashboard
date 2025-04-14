@@ -11,7 +11,10 @@ import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const ProfileDetail = () => {
+  console.log("=== PROFILE DETAIL PAGE MOUNTED ===");
   const { id } = useParams<{ id: string }>();
+  console.log("Profile Detail - Profile ID from URL:", id);
+  
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -29,33 +32,54 @@ const ProfileDetail = () => {
     updateProfileStatusLocally
   } = useProfiles();
 
+  console.log("Profile Detail - Current JobID:", jobId);
+  console.log("Profile Detail - Filtered Profiles Count:", filteredProfiles.length);
+  console.log("Profile Detail - Current Profile Index:", currentProfileIndex);
+  
   const [loading, setLoading] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"shortlist" | "reject" | null>(null);
 
   const profile = location.state?.profile || 
     filteredProfiles[currentProfileIndex] || 
     null;
+    
+  console.log("Profile Detail - Current Profile:", profile ? `${profile.name} (${profile.email})` : "No profile found");
+  if (profile) {
+    console.log("Profile Detail - PDF URL:", profile.pdfUrl);
+  }
 
   useEffect(() => {
+    console.log("Profile Detail - Checking JobID:", jobId);
     if (!jobId) {
+      console.log("No JobID found, redirecting to home");
       navigate("/");
       return;
     }
 
     if (!profile) {
+      console.log("No profile found, redirecting to profiles list");
       navigate(`/profiles/${activeCategory}`);
     }
   }, [jobId, profile, navigate, activeCategory]);
 
   const handleAction = async (action: "shortlist" | "reject") => {
-    if (!profile || !profile.email) return;
+    console.log(`Profile Detail - Handling ${action} action`);
+    if (!profile || !profile.email) {
+      console.log("No profile or email found, cannot perform action");
+      return;
+    }
     
     setConfirmAction(action);
   };
 
   const downloadResume = () => {
-    if (!profile?.pdfUrl) return;
+    console.log("Profile Detail - Downloading resume");
+    if (!profile?.pdfUrl) {
+      console.log("No PDF URL found, cannot download");
+      return;
+    }
     
+    console.log("Calling downloadResumeFile function with URL:", profile.pdfUrl);
     downloadResumeFile(profile);
     
     toast({
@@ -65,14 +89,20 @@ const ProfileDetail = () => {
   };
 
   const handleConfirmAction = async () => {
-    if (!profile || !profile.id || !confirmAction) return;
+    console.log(`Profile Detail - Confirming ${confirmAction} action`);
+    if (!profile || !profile.id || !confirmAction) {
+      console.log("Missing profile, ID, or action, cannot confirm");
+      return;
+    }
     
     setLoading(true);
     try {
       const status = confirmAction === "shortlist" ? "Shortlisted" : "Rejected";
+      console.log(`Updating profile ${profile.id} status to ${status}`);
       const success = await updateProfileStatus(profile.id, status);
       
       if (success) {
+        console.log("Status update successful, updating locally");
         updateProfileStatusLocally(profile.id, status);
         toast({
           title: "Success",
@@ -80,6 +110,7 @@ const ProfileDetail = () => {
         });
         
         if (confirmAction === "shortlist") {
+          console.log("Shortlisted, downloading resume");
           downloadResume();
         }
         
@@ -88,19 +119,26 @@ const ProfileDetail = () => {
         const hasMoreNewProfiles = currentNewIndex < newProfiles.length - 1;
         const hasPreviousNewProfiles = currentNewIndex > 0;
         
+        console.log("New profiles remaining:", newProfiles.length);
+        console.log("Current index in new profiles:", currentNewIndex);
+        console.log("Has more new profiles:", hasMoreNewProfiles);
+        
         if (currentNewIndex < newProfiles.length - 1) {
           const nextNewProfile = newProfiles[currentNewIndex + 1];
           const nextIndexInFiltered = filteredProfiles.findIndex(p => p.id === nextNewProfile.id);
           
+          console.log("Navigating to next new profile:", nextNewProfile.id);
           setCurrentProfileIndex(nextIndexInFiltered);
           navigate(`/profile/${nextNewProfile.id}`, { state: { profile: nextNewProfile } });
         } else {
+          console.log("No more new profiles, navigating to profiles list");
           toast({
             description: "No more new resumes available.",
           });
           navigate(`/profiles/new`);
         }
       } else {
+        console.log("Status update failed");
         throw new Error("Failed to update status");
       }
     } catch (error) {
@@ -151,6 +189,7 @@ const ProfileDetail = () => {
   const hasPreviousNewProfiles = currentNewIndex > 0;
 
   if (!profile) {
+    console.log("Rendering loading state - no profile found");
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Header title="Resume" showBackButton />
@@ -161,6 +200,8 @@ const ProfileDetail = () => {
     );
   }
 
+  console.log("Rendering profile detail view for:", profile.name);
+  
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header title={`Resume: ${profile.name}`} showBackButton backTo="/dashboard" />
@@ -204,7 +245,7 @@ const ProfileDetail = () => {
               <Button
                 onClick={() => handleAction("reject")}
                 variant="destructive"
-                disabled={loading || isRejected}
+                disabled={loading || profile.status === "Rejected"}
                 className="w-[48%]"
               >
                 Reject
@@ -212,7 +253,7 @@ const ProfileDetail = () => {
               <Button
                 onClick={() => handleAction("shortlist")}
                 variant="default"
-                disabled={loading || isShortlisted}
+                disabled={loading || profile.status === "Shortlisted"}
                 className="w-[48%]"
               >
                 Shortlist
@@ -222,24 +263,48 @@ const ProfileDetail = () => {
             <div className="flex flex-col">
               <div className="flex justify-between">
                 <Button
-                  onClick={handlePreviousProfile}
+                  onClick={() => {
+                    console.log("Navigating to previous profile");
+                    const newProfiles = filteredProfiles.filter(p => p.status === "New");
+                    const currentNewIndex = profile ? newProfiles.findIndex(p => p.id === profile.id) : -1;
+                    
+                    if (currentNewIndex > 0) {
+                      const prevNewProfile = newProfiles[currentNewIndex - 1];
+                      const prevIndexInFiltered = filteredProfiles.findIndex(p => p.id === prevNewProfile.id);
+                      
+                      setCurrentProfileIndex(prevIndexInFiltered);
+                      navigate(`/profile/${prevNewProfile.id}`, { state: { profile: prevNewProfile } });
+                    }
+                  }}
                   variant="outline"
-                  disabled={!hasPreviousNewProfiles || loading}
+                  disabled={!hasPreviousProfiles || loading}
                   className="w-[48%]"
                 >
                   <ChevronLeft className="mr-1" /> Previous
                 </Button>
                 <Button
-                  onClick={handleNextProfile}
+                  onClick={() => {
+                    console.log("Navigating to next profile");
+                    const newProfiles = filteredProfiles.filter(p => p.status === "New");
+                    const currentNewIndex = newProfiles.findIndex(p => p.id === profile.id);
+                    
+                    if (currentNewIndex < newProfiles.length - 1) {
+                      const nextNewProfile = newProfiles[currentNewIndex + 1];
+                      const nextIndexInFiltered = filteredProfiles.findIndex(p => p.id === nextNewProfile.id);
+                      
+                      setCurrentProfileIndex(nextIndexInFiltered);
+                      navigate(`/profile/${nextNewProfile.id}`, { state: { profile: nextNewProfile } });
+                    }
+                  }}
                   variant="outline"
-                  disabled={!hasMoreNewProfiles || loading}
+                  disabled={!hasMoreProfiles || loading}
                   className="w-[48%]"
                 >
                   Next <ChevronRight className="ml-1" />
                 </Button>
               </div>
               
-              {!hasMoreNewProfiles && (
+              {!hasMoreProfiles && (
                 <p className="text-center text-sm text-muted-foreground mt-2">
                   Last profile
                 </p>

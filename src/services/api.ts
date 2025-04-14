@@ -22,6 +22,7 @@ let mockResumeStorage: ResumeProfile[] = [];
 // Function to fetch profiles from Supabase
 export const fetchProfilesFromSupabase = async (jobId: string): Promise<ResumeProfile[]> => {
   try {
+    console.log("=== FETCH PROFILES FROM SUPABASE ===");
     console.log("Fetching profiles from Supabase for jobId:", jobId);
     
     const { data, error } = await supabase
@@ -60,6 +61,7 @@ export const fetchProfilesFromSupabase = async (jobId: string): Promise<ResumePr
 // Original Google Sheets function (renamed)
 export const fetchProfilesFromGoogleSheetsOriginal = async (jobId: string): Promise<ResumeProfile[]> => {
   try {
+    console.log("=== FETCH PROFILES FROM GOOGLE SHEETS ===");
     console.log("Fetching profiles from Google Sheets for jobId:", jobId);
     const response = await fetch(SHEET_URL);
     
@@ -107,6 +109,7 @@ export const fetchProfilesFromGoogleSheetsOriginal = async (jobId: string): Prom
 // Main function to fetch profiles - tries Supabase first, then falls back to Google Sheets
 export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<ResumeProfile[]> => {
   try {
+    console.log("=== MAIN FETCH PROFILES FUNCTION ===");
     console.log("Fetching profiles from Supabase for jobId:", jobId);
     
     // Attempt to fetch directly from Supabase first
@@ -135,6 +138,7 @@ export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<Resu
         pdfUrl: item.pdf_url || ""
       }));
       
+      console.log("Returning profiles from Supabase");
       return profiles;
     } else {
       console.log("No profiles found in Supabase, trying Google Sheets as fallback");
@@ -156,13 +160,17 @@ export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<Resu
             pdfUrl: profile.pdfUrl
           });
         }
+
+        console.log("Successfully imported profiles to Supabase");
       }
       
+      console.log("Returning profiles from Google Sheets");
       return googleSheetProfiles;
     }
   } catch (error) {
     console.error("Error in fetchProfilesFromGoogleSheets:", error);
     // Final fallback to Google Sheets
+    console.log("Exception caught, falling back to Google Sheets");
     return fetchProfilesFromGoogleSheetsOriginal(jobId);
   }
 };
@@ -170,6 +178,7 @@ export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<Resu
 // Function to update profile status
 export const updateProfileStatus = async (id: string, status: "Shortlisted" | "Rejected"): Promise<boolean> => {
   try {
+    console.log("=== UPDATE PROFILE STATUS ===");
     console.log(`Updating profile status for ${id} to ${status}`);
     
     // Update in Supabase
@@ -183,6 +192,7 @@ export const updateProfileStatus = async (id: string, status: "Shortlisted" | "R
       throw error;
     }
     
+    console.log("Profile status updated successfully");
     return true;
   } catch (error) {
     console.error("Error updating profile status:", error);
@@ -193,6 +203,7 @@ export const updateProfileStatus = async (id: string, status: "Shortlisted" | "R
 // Function to upload a new resume
 export const uploadResume = async (profile: Omit<ResumeProfile, 'id'>): Promise<boolean> => {
   try {
+    console.log("=== UPLOAD RESUME ===");
     console.log("Uploading resume to Supabase:", profile);
     
     const { error } = await supabase
@@ -212,6 +223,7 @@ export const uploadResume = async (profile: Omit<ResumeProfile, 'id'>): Promise<
       return false;
     }
     
+    console.log("Resume uploaded successfully");
     return true;
   } catch (error) {
     console.error("Error uploading resume:", error);
@@ -222,11 +234,13 @@ export const uploadResume = async (profile: Omit<ResumeProfile, 'id'>): Promise<
 // Function to upload PDF file to Supabase storage
 export const uploadPdfFile = async (file: File, jobId: string): Promise<string | null> => {
   try {
+    console.log("=== UPLOAD PDF FILE ===");
     // Create a storage bucket if it doesn't exist
     const fileExt = file.name.split('.').pop();
     const fileName = `${jobId}_${Date.now()}.${fileExt}`;
     const filePath = `resumes/${fileName}`;
 
+    console.log("Uploading file to Supabase storage:", filePath);
     const { data, error: uploadError } = await supabase.storage
       .from('resume-pdfs')
       .upload(filePath, file);
@@ -236,10 +250,12 @@ export const uploadPdfFile = async (file: File, jobId: string): Promise<string |
       return null;
     }
 
+    console.log("File uploaded successfully, getting public URL");
     const { data: urlData } = supabase.storage
       .from('resume-pdfs')
       .getPublicUrl(filePath);
 
+    console.log("Public URL:", urlData.publicUrl);
     return urlData.publicUrl;
   } catch (error) {
     console.error("Error uploading PDF file:", error);
@@ -373,9 +389,14 @@ export const convertResumesToCsv = (resumes: ResumeProfile[]): string => {
 
 // Fix the resume PDF download issue
 export const downloadResume = (profile: ResumeProfile): void => {
-  if (!profile?.pdfUrl) return;
+  console.log("=== DOWNLOAD RESUME ===");
+  if (!profile?.pdfUrl) {
+    console.log("No PDF URL provided for download");
+    return;
+  }
   
   let downloadUrl = profile.pdfUrl;
+  console.log("Original download URL:", downloadUrl);
   
   // If it's a Google Docs URL, make it download directly
   if (downloadUrl.includes('docs.google.com/document')) {
@@ -384,6 +405,7 @@ export const downloadResume = (profile: ResumeProfile): void => {
     
     // Add direct download parameter to bypass Google account selection
     downloadUrl += '&autodownload=1';
+    console.log("Modified Google Docs URL:", downloadUrl);
   }
   else if (downloadUrl.includes('drive.google.com/file/d/')) {
     // Extract file ID from Google Drive URL
@@ -392,10 +414,14 @@ export const downloadResume = (profile: ResumeProfile): void => {
       const fileId = fileIdMatch[1];
       // Format for direct download without Google account selection
       downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
+      console.log("Modified Google Drive URL:", downloadUrl);
     }
   }
   
+  console.log("Final download URL:", downloadUrl);
+  
   // Create a link element and trigger a direct download
+  console.log("Creating and clicking download link");
   const downloadLink = document.createElement('a');
   downloadLink.href = downloadUrl;
   downloadLink.setAttribute('download', `${profile.name}_resume.pdf`);
@@ -405,15 +431,19 @@ export const downloadResume = (profile: ResumeProfile): void => {
   
   // Click the link to trigger download
   downloadLink.click();
+  console.log("Download link clicked");
   
   // Clean up
   setTimeout(() => {
     document.body.removeChild(downloadLink);
+    console.log("Download link removed from DOM");
   }, 100);
 };
 
 // Authentication functions with Supabase
 export const signIn = async (email: string, password: string) => {
+  console.log("=== SIGN IN ===");
+  console.log("Signing in with email:", email);
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -421,6 +451,7 @@ export const signIn = async (email: string, password: string) => {
     });
     
     if (error) {
+      console.log("Supabase sign in failed:", error.message);
       // Fallback for development/testing
       if (email === 'admin@example.com' && password === 'password') {
         console.log('Mock sign in successful');
@@ -432,6 +463,7 @@ export const signIn = async (email: string, password: string) => {
       throw error;
     }
     
+    console.log("Supabase sign in successful");
     return data;
   } catch (error) {
     console.error("Error signing in:", error);
@@ -440,9 +472,12 @@ export const signIn = async (email: string, password: string) => {
 };
 
 export const signOut = async () => {
+  console.log("=== SIGN OUT ===");
   try {
+    console.log("Signing out from Supabase");
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    console.log("Sign out successful");
     return;
   } catch (error) {
     console.error("Error signing out:", error);
@@ -451,19 +486,25 @@ export const signOut = async () => {
 };
 
 export const getCurrentUser = async () => {
+  console.log("=== GET CURRENT USER ===");
   try {
+    console.log("Getting current user from Supabase");
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
+      console.log("Supabase user found:", user.email);
       return user;
     }
     
-    // For development/testing, check if we have a stored user in sessionStorage
-    const storedUser = sessionStorage.getItem('mockUser');
+    // For development/testing, check if we have a stored user in localStorage
+    console.log("No Supabase user found, checking localStorage");
+    const storedUser = localStorage.getItem('mockUser');
     if (storedUser) {
+      console.log("Mock user found in localStorage");
       return JSON.parse(storedUser);
     }
     
+    console.log("No user found");
     return null;
   } catch (error) {
     console.error("Error getting current user:", error);

@@ -1,15 +1,22 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
+  console.log("=== INDEX PAGE MOUNTED ===");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const jobIdFromUrl = searchParams.get("jobId");
+  const { user } = useAuth();
+  
+  console.log("Index page - Current auth user:", user?.email || "Not logged in");
+  console.log("Index page - URL JobId parameter:", jobIdFromUrl);
   
   const [jobIdInput, setJobIdInput] = useState(jobIdFromUrl || "");
   const [loading, setLoading] = useState(false);
@@ -27,6 +34,7 @@ const Index = () => {
 
   // Process job ID from URL on component mount
   useEffect(() => {
+    console.log("Index page - Initial render effect");
     const processUrlJobId = async () => {
       if (jobIdFromUrl && !initialProcessingDoneRef.current) {
         console.log("Processing jobId from URL:", jobIdFromUrl);
@@ -82,12 +90,17 @@ const Index = () => {
     console.log("Initial mount - URL JobId:", jobIdFromUrl);
     // processUrlJobId();
     if(jobIdFromUrl){
-    setTimeout(()=>processJobId(jobIdFromUrl),500);
+      console.log("Found jobId in URL, will process after short delay");
+      setTimeout(()=>processJobId(jobIdFromUrl),500);
     }
   }, [jobIdFromUrl, navigate, setJobId, fetchProfiles, clearProfiles, setActiveCategory]); 
 
   const processJobId = async (id: string): Promise<boolean> => {
+    console.log("=== PROCESS JOB ID ===");
+    console.log("Processing job ID:", id);
+    
     if (!id.trim()) {
+      console.log("Empty jobId provided");
       toast({
         title: "Error",
         description: "Please enter a Job ID",
@@ -106,6 +119,7 @@ const Index = () => {
     
     try {
       // First clear any existing profiles to prevent flash of old data
+      console.log("Clearing existing profiles");
       clearProfiles();
       
       // Set the job ID in context
@@ -113,6 +127,7 @@ const Index = () => {
       setJobId(id.trim());
       
       // Allow time for the state to update
+      console.log("Waiting for state update");
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Then fetch profiles for this job ID - using await to ensure we get the results
@@ -169,6 +184,7 @@ const Index = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Job ID form submitted with:", jobIdInput);
     await processJobId(jobIdInput);
   };
 
