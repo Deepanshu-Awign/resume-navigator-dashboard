@@ -31,6 +31,30 @@ const Dashboard = () => {
     );
   }
 
+  // If no profiles at all, show a comprehensive message
+  if (stats.all === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Header title={`Job ID: ${jobId}`} />
+        <div className="container mx-auto p-4 flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-700 mb-4">No Profiles Found</h2>
+            <p className="text-lg text-gray-500 mb-6">
+              There are currently no profiles for this Job ID. 
+              Try uploading resumes or verifying the Job ID.
+            </p>
+            <button 
+              onClick={() => navigate("/")} 
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header title={`Job ID: ${jobId}`} />
@@ -58,15 +82,10 @@ const Dashboard = () => {
             onClick={() => handleCardClick("rejected")} 
           />
         </div>
-
-        {stats.all === 0 && (
-          <div className="mt-8 text-center">
-            <p className="text-lg text-gray-500">No resumes found for this Job ID.</p>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
 export default Dashboard;
+

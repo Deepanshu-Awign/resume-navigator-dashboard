@@ -48,6 +48,32 @@ const ProfileList = () => {
     );
   }
 
+  // Check if there are no profiles in any category
+  const hasNoProfilesInAnyCategory = stats.new === 0 && stats.shortlisted === 0 && stats.rejected === 0;
+
+  if (hasNoProfilesInAnyCategory) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Header title="No Profiles" showBackButton backTo="/dashboard" />
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-700 mb-4">No Profiles Found</h2>
+            <p className="text-lg text-gray-500 mb-6">
+              There are no profiles in any category for this Job ID. 
+              Try uploading resumes or verifying the Job ID.
+            </p>
+            <button 
+              onClick={() => navigate("/")} 
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header title={getCategoryTitle()} showBackButton backTo="/dashboard" />
@@ -106,3 +132,4 @@ const ProfileList = () => {
 };
 
 export default ProfileList;
+
