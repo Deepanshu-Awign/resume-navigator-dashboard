@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { GoogleSheetData, ResumeProfile } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 
-// Constants
+// Constants - keeping the Google Sheet ID for backward compatibility if needed
 const SHEET_ID = "1ERZMPrh3siXBYUYPgu62Z3ULpjqlTdDrD4P1xWzVMRk";
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
 
@@ -18,49 +19,46 @@ const MOCK_ADMIN_USER = {
 // Mock storage for resumes (since we don't have a real database)
 let mockResumeStorage: ResumeProfile[] = [];
 
-// Supabase setup
-// Check if Supabase environment variables are set
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Create a fallback client if environment variables are not set
-const createFallbackClient = () => {
-  console.warn(
-    "Supabase URL or anonymous key not found. Using fallback client. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file for production use."
-  );
-  
-  // Return a mock client with similar structure but no actual Supabase functionality
-  return {
-    auth: {
-      signInWithPassword: async () => ({ data: null, error: new Error("Supabase not configured") }),
-      signOut: async () => ({ error: null }),
-      getUser: async () => ({ data: { user: null }, error: null }),
-    },
-    from: () => ({
-      select: () => ({
-        eq: async () => ({ data: [], error: new Error("Supabase not configured") }),
-      }),
-      update: () => ({
-        eq: async () => ({ error: new Error("Supabase not configured") }),
-      }),
-      insert: async () => ({ error: new Error("Supabase not configured") }),
-    }),
-    storage: {
-      from: () => ({
-        upload: async () => ({ error: new Error("Supabase not configured") }),
-        getPublicUrl: () => ({ data: { publicUrl: "" } }),
-      }),
-    },
-  };
+// Function to fetch profiles from Supabase
+export const fetchProfilesFromSupabase = async (jobId: string): Promise<ResumeProfile[]> => {
+  try {
+    console.log("Fetching profiles from Supabase for jobId:", jobId);
+    
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*')
+      .eq('job_id', jobId);
+    
+    if (error) {
+      console.error("Error fetching from Supabase:", error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.log("No profiles found in Supabase for jobId:", jobId);
+      return [];
+    }
+    
+    // Map the Supabase data structure to our ResumeProfile interface
+    const profiles: ResumeProfile[] = data.map(item => ({
+      id: item.id,
+      jobId: item.job_id,
+      name: item.name,
+      email: item.email,
+      status: item.status as "New" | "Shortlisted" | "Rejected",
+      pdfUrl: item.pdf_url || ""
+    }));
+    
+    console.log(`Found ${profiles.length} profiles in Supabase for jobId:`, jobId);
+    return profiles;
+  } catch (error) {
+    console.error("Error fetching profiles from Supabase:", error);
+    return [];
+  }
 };
 
-// Create Supabase client only if both URL and anonymous key are available
-export const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : createFallbackClient();
-
-// Function to fetch data directly from Google Sheets as CSV
-export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<ResumeProfile[]> => {
+// Original Google Sheets function (renamed)
+export const fetchProfilesFromGoogleSheetsOriginal = async (jobId: string): Promise<ResumeProfile[]> => {
   try {
     console.log("Fetching profiles from Google Sheets for jobId:", jobId);
     const response = await fetch(SHEET_URL);
@@ -71,7 +69,6 @@ export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<Resu
     }
     
     const csvData = await response.text();
-    console.log("CSV data received:", csvData.substring(0, 100) + "..."); // Log first 100 chars for debugging
     
     // Parse CSV manually
     const rows = csvData.split('\n');
@@ -99,7 +96,7 @@ export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<Resu
       };
     }).filter(profile => profile.jobId === jobId);
 
-    console.log("Filtered profiles:", profiles.length);
+    console.log("Filtered profiles from Google Sheets:", profiles.length);
     return profiles;
   } catch (error) {
     console.error("Error fetching profiles from Google Sheets:", error);
@@ -107,59 +104,88 @@ export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<Resu
   }
 };
 
-// Function to fetch profiles from Supabase
-export const fetchProfilesFromSupabase = async (jobId: string): Promise<ResumeProfile[]> => {
+// Main function to fetch profiles - tries Supabase first, then falls back to Google Sheets
+export const fetchProfilesFromGoogleSheets = async (jobId: string): Promise<ResumeProfile[]> => {
   try {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Returning empty profiles array.");
-      return [];
+    // First try to get data from Supabase
+    const supabaseProfiles = await fetchProfilesFromSupabase(jobId);
+    
+    // If we got profiles from Supabase, return them
+    if (supabaseProfiles.length > 0) {
+      console.log(`Using ${supabaseProfiles.length} profiles from Supabase for jobId:`, jobId);
+      return supabaseProfiles;
     }
     
-    const { data, error } = await supabase
-      .from('resumes')
-      .select('*')
-      .eq('jobId', jobId);
+    // If no profiles found in Supabase, try Google Sheets as fallback
+    console.log("No profiles found in Supabase, trying Google Sheets as fallback");
+    const googleSheetProfiles = await fetchProfilesFromGoogleSheetsOriginal(jobId);
     
-    if (error) {
-      throw error;
+    // If we found profiles in Google Sheets, save them to Supabase for future use
+    if (googleSheetProfiles.length > 0) {
+      console.log(`Importing ${googleSheetProfiles.length} profiles from Google Sheets to Supabase`);
+      
+      // Import each profile to Supabase
+      for (const profile of googleSheetProfiles) {
+        await uploadResume({
+          jobId: profile.jobId,
+          name: profile.name,
+          email: profile.email,
+          status: profile.status,
+          pdfUrl: profile.pdfUrl
+        });
+      }
     }
     
-    return data || [];
+    return googleSheetProfiles;
   } catch (error) {
-    console.error("Error fetching profiles from Supabase:", error);
+    console.error("Error in fetchProfilesFromGoogleSheets:", error);
     return [];
   }
 };
 
-// Function to update profile status in Google Sheets
-export const updateProfileStatus = async (email: string, status: "Shortlisted" | "Rejected"): Promise<boolean> => {
-  // This is a mock implementation since we can't directly update Google Sheets without authentication
-  // In a real implementation, you would need to use the Google Sheets API with proper authentication
-  console.log(`Updating profile status for ${email} to ${status}`);
-  
-  // For the exercise, log success but don't actually update the sheet
-  return true;
+// Function to update profile status
+export const updateProfileStatus = async (id: string, status: "Shortlisted" | "Rejected"): Promise<boolean> => {
+  try {
+    console.log(`Updating profile status for ${id} to ${status}`);
+    
+    // Update in Supabase
+    const { error } = await supabase
+      .from('resumes')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    
+    if (error) {
+      console.error("Error updating profile in Supabase:", error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error updating profile status:", error);
+    return false;
+  }
 };
 
 // Function to upload a new resume
 export const uploadResume = async (profile: Omit<ResumeProfile, 'id'>): Promise<boolean> => {
   try {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Using mock storage.");
-      const newProfile: ResumeProfile = {
-        ...profile,
-        id: crypto.randomUUID()
-      };
-      mockResumeStorage.push(newProfile);
-      return true;
-    }
+    console.log("Uploading resume to Supabase:", profile);
     
     const { error } = await supabase
       .from('resumes')
-      .insert([profile]);
+      .insert([
+        {
+          job_id: profile.jobId,
+          name: profile.name,
+          email: profile.email,
+          status: profile.status,
+          pdf_url: profile.pdfUrl || ''
+        }
+      ]);
     
     if (error) {
-      throw error;
+      console.error("Error uploading resume to Supabase:", error);
+      return false;
     }
     
     return true;
@@ -172,35 +198,32 @@ export const uploadResume = async (profile: Omit<ResumeProfile, 'id'>): Promise<
 // Function to upload PDF file to Supabase storage
 export const uploadPdfFile = async (file: File, jobId: string): Promise<string | null> => {
   try {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Cannot upload PDF file.");
-      return null;
-    }
-    
+    // Create a storage bucket if it doesn't exist
     const fileExt = file.name.split('.').pop();
     const fileName = `${jobId}_${Date.now()}.${fileExt}`;
     const filePath = `resumes/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { data, error: uploadError } = await supabase.storage
       .from('resume-pdfs')
       .upload(filePath, file);
 
     if (uploadError) {
-      throw uploadError;
+      console.error("Error uploading PDF to storage:", uploadError);
+      return null;
     }
 
-    const { data } = supabase.storage
+    const { data: urlData } = supabase.storage
       .from('resume-pdfs')
       .getPublicUrl(filePath);
 
-    return data.publicUrl;
+    return urlData.publicUrl;
   } catch (error) {
     console.error("Error uploading PDF file:", error);
     return null;
   }
 };
 
-// NEW FUNCTION: Bulk upload resumes from CSV data
+// Bulk upload resumes from CSV data
 export const bulkUploadResumes = async (
   csvData: string, 
   jobId: string
@@ -274,32 +297,29 @@ export const bulkUploadResumes = async (
   }
 };
 
-// NEW FUNCTION: Get all resumes across all jobs
+// Get all resumes across all jobs
 export const getAllResumes = async (): Promise<ResumeProfile[]> => {
   try {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn("Supabase not configured. Using mock storage.");
-      return mockResumeStorage;
-    }
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*');
     
-    // Type-safe approach to handle different client implementations
-    try {
-      const response = await supabase.from('resumes').select('*');
-      
-      // Check if response is a standard Supabase response
-      if ('data' in response && 'error' in response) {
-        if (response.error) throw response.error;
-        return response.data || [];
-      } else {
-        // Alternative approach for the mock client or different implementations
-        const result = await (response as any).eq();
-        if (result?.error) throw result.error;
-        return result?.data || [];
-      }
-    } catch (error) {
-      console.error("Error in Supabase query:", error);
+    if (error) {
+      console.error("Error fetching all resumes from Supabase:", error);
       return [];
     }
+    
+    // Map the data to our ResumeProfile interface
+    const profiles: ResumeProfile[] = data.map(item => ({
+      id: item.id,
+      jobId: item.job_id,
+      name: item.name,
+      email: item.email,
+      status: item.status as "New" | "Shortlisted" | "Rejected",
+      pdfUrl: item.pdf_url || ""
+    }));
+    
+    return profiles;
   } catch (error) {
     console.error("Error fetching all resumes:", error);
     return [];
@@ -327,30 +347,65 @@ export const convertResumesToCsv = (resumes: ResumeProfile[]): string => {
   return csvRows.join('\n');
 };
 
-// Authentication functions with mock implementation
+// Fix the resume PDF download issue
+export const downloadResume = (profile: ResumeProfile): void => {
+  if (!profile?.pdfUrl) return;
+  
+  let downloadUrl = profile.pdfUrl;
+  
+  // If it's a Google Docs URL, make it download directly
+  if (downloadUrl.includes('docs.google.com/document')) {
+    // Replace /edit or /preview with /export?format=pdf
+    downloadUrl = downloadUrl.replace(/\/(edit|preview).*$/, '/export?format=pdf');
+    
+    // Add direct download parameter to bypass Google account selection
+    downloadUrl += '&autodownload=1';
+  }
+  else if (downloadUrl.includes('drive.google.com/file/d/')) {
+    // Extract file ID from Google Drive URL
+    const fileIdMatch = downloadUrl.match(/\/d\/([^\/]+)\//);
+    if (fileIdMatch && fileIdMatch[1]) {
+      const fileId = fileIdMatch[1];
+      // Format for direct download without Google account selection
+      downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
+    }
+  }
+  
+  // Create an invisible iframe to handle the download without opening a new tab
+  const downloadFrame = document.createElement('iframe');
+  downloadFrame.style.display = 'none';
+  document.body.appendChild(downloadFrame);
+  
+  // Set the source to the download URL
+  downloadFrame.src = downloadUrl;
+  
+  // Remove the frame after a delay
+  setTimeout(() => {
+    document.body.removeChild(downloadFrame);
+  }, 2000);
+};
+
+// Authentication functions with Supabase
 export const signIn = async (email: string, password: string) => {
   try {
-    // If Supabase is configured, use it
-    if (supabaseUrl && supabaseAnonKey) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (error) throw error;
-      return data;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    
+    if (error) {
+      // Fallback for development/testing
+      if (email === 'admin@example.com' && password === 'password') {
+        console.log('Mock sign in successful');
+        return {
+          user: MOCK_ADMIN_USER,
+          session: { token: 'mock-token' }
+        };
+      }
+      throw error;
     }
     
-    // Mock authentication for development/testing
-    if (email === 'admin@example.com' && password === 'password') {
-      console.log('Mock sign in successful');
-      return {
-        user: MOCK_ADMIN_USER,
-        session: { token: 'mock-token' }
-      };
-    }
-    
-    throw new Error('Invalid email or password');
+    return data;
   } catch (error) {
     console.error("Error signing in:", error);
     throw error;
@@ -359,15 +414,8 @@ export const signIn = async (email: string, password: string) => {
 
 export const signOut = async () => {
   try {
-    // If Supabase is configured, use it
-    if (supabaseUrl && supabaseAnonKey) {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return;
-    }
-    
-    // Mock sign out for development/testing
-    console.log('Mock sign out successful');
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
     return;
   } catch (error) {
     console.error("Error signing out:", error);
@@ -377,9 +425,9 @@ export const signOut = async () => {
 
 export const getCurrentUser = async () => {
   try {
-    // If Supabase is configured, use it
-    if (supabaseUrl && supabaseAnonKey) {
-      const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
       return user;
     }
     

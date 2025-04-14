@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
-import { updateProfileStatus } from "@/services/api";
+import { updateProfileStatus, downloadResume as downloadResumeFile } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
@@ -33,7 +32,6 @@ const ProfileDetail = () => {
   const [loading, setLoading] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"shortlist" | "reject" | null>(null);
 
-  // Get profile either from location state or find in filteredProfiles
   const profile = location.state?.profile || 
     filteredProfiles[currentProfileIndex] || 
     null;
@@ -58,32 +56,7 @@ const ProfileDetail = () => {
   const downloadResume = () => {
     if (!profile?.pdfUrl) return;
     
-    // Create proper download URL for Google Docs or Google Drive
-    let downloadUrl = profile.pdfUrl;
-    
-    if (downloadUrl.includes('docs.google.com/document')) {
-      // Replace /edit or /preview with /export?format=pdf
-      downloadUrl = downloadUrl.replace(/\/(edit|preview).*$/, '/export?format=pdf');
-    }
-    else if (downloadUrl.includes('drive.google.com/file/d/')) {
-      // Extract file ID from Google Drive URL
-      const fileIdMatch = downloadUrl.match(/\/d\/([^\/]+)\//);
-      if (fileIdMatch && fileIdMatch[1]) {
-        const fileId = fileIdMatch[1];
-        // Format for direct download
-        downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-      }
-    }
-    
-    console.log("Downloading resume from URL:", downloadUrl);
-    
-    // Create a temporary anchor element to trigger the download
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `${profile.name}_resume.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadResumeFile(profile);
     
     toast({
       title: "Download started",
@@ -92,12 +65,12 @@ const ProfileDetail = () => {
   };
 
   const handleConfirmAction = async () => {
-    if (!profile || !profile.email || !confirmAction) return;
+    if (!profile || !profile.id || !confirmAction) return;
     
     setLoading(true);
     try {
       const status = confirmAction === "shortlist" ? "Shortlisted" : "Rejected";
-      const success = await updateProfileStatus(profile.email, status);
+      const success = await updateProfileStatus(profile.id, status);
       
       if (success) {
         updateProfileStatusLocally(profile.id, status);
@@ -107,23 +80,21 @@ const ProfileDetail = () => {
         });
         
         if (confirmAction === "shortlist") {
-          // Download PDF
           downloadResume();
         }
         
-        // Find next new profile
         const newProfiles = filteredProfiles.filter(p => p.status === "New");
-        const currentNewIndex = newProfiles.findIndex(p => p.id === profile.id);
+        const currentNewIndex = profile ? newProfiles.findIndex(p => p.id === profile.id) : -1;
+        const hasMoreNewProfiles = currentNewIndex < newProfiles.length - 1;
+        const hasPreviousNewProfiles = currentNewIndex > 0;
         
         if (currentNewIndex < newProfiles.length - 1) {
-          // There's another new profile after this one
           const nextNewProfile = newProfiles[currentNewIndex + 1];
           const nextIndexInFiltered = filteredProfiles.findIndex(p => p.id === nextNewProfile.id);
           
           setCurrentProfileIndex(nextIndexInFiltered);
           navigate(`/profile/${nextNewProfile.id}`, { state: { profile: nextNewProfile } });
         } else {
-          // No more new profiles
           toast({
             description: "No more new resumes available.",
           });
@@ -146,7 +117,6 @@ const ProfileDetail = () => {
   };
 
   const handleNextProfile = () => {
-    // Only navigate to profiles with "New" status
     const newProfiles = filteredProfiles.filter(p => p.status === "New");
     const currentNewIndex = newProfiles.findIndex(p => p.id === profile.id);
     
@@ -160,7 +130,6 @@ const ProfileDetail = () => {
   };
 
   const handlePreviousProfile = () => {
-    // Only navigate to profiles with "New" status
     const newProfiles = filteredProfiles.filter(p => p.status === "New");
     const currentNewIndex = newProfiles.findIndex(p => p.id === profile.id);
     
@@ -173,11 +142,9 @@ const ProfileDetail = () => {
     }
   };
 
-  // Determine button states based on profile status and availability of new profiles
   const isShortlisted = profile?.status === "Shortlisted";
   const isRejected = profile?.status === "Rejected";
   
-  // Check if there are more new profiles
   const newProfiles = filteredProfiles.filter(p => p.status === "New");
   const currentNewIndex = profile ? newProfiles.findIndex(p => p.id === profile.id) : -1;
   const hasMoreNewProfiles = currentNewIndex < newProfiles.length - 1;

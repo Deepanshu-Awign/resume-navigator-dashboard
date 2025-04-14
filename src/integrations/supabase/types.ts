@@ -9,7 +9,63 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      "AEx Profile Database": {
+        Row: {
+          Email: string | null
+          "Job ID": string
+          Name: string
+          "PDF URL": string | null
+          Status: string | null
+        }
+        Insert: {
+          Email?: string | null
+          "Job ID": string
+          Name: string
+          "PDF URL"?: string | null
+          Status?: string | null
+        }
+        Update: {
+          Email?: string | null
+          "Job ID"?: string
+          Name?: string
+          "PDF URL"?: string | null
+          Status?: string | null
+        }
+        Relationships: []
+      }
+      resumes: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          job_id: string
+          name: string
+          pdf_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          job_id: string
+          name: string
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          job_id?: string
+          name?: string
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getCurrentUser, signIn, signOut } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
   user: any;
@@ -27,54 +28,105 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const currentUser = await getCurrentUser();
-        if (currentUser) {
-          setUser(currentUser);
-          setIsAdmin(!!currentUser);
+    // Set up the auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
+        if (session?.user) {
+          setUser(session.user);
+          setIsAdmin(true);
           // Store mock user in sessionStorage for persistence
-          sessionStorage.setItem('mockUser', JSON.stringify(currentUser));
+          sessionStorage.setItem('mockUser', JSON.stringify(session.user));
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setIsAdmin(false);
+          // Remove mock user from sessionStorage
+          sessionStorage.removeItem('mockUser');
+          // Clear job ID from localStorage for full reset
+          localStorage.removeItem('jobId');
+        }
+      }
+    );
+
+    // Check for existing session
+    const initializeAuth = async () => {
+      try {
+        // First, check Supabase auth
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          console.log("Session found in Supabase:", session.user.email);
+          setUser(session.user);
+          setIsAdmin(true);
+          sessionStorage.setItem('mockUser', JSON.stringify(session.user));
+        } else {
+          // Fallback to our mock authentication
+          const storedUser = sessionStorage.getItem('mockUser');
+          if (storedUser) {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              console.log("Session found in sessionStorage:", parsedUser.email);
+              setUser(parsedUser);
+              setIsAdmin(true);
+            } catch (e) {
+              console.error("Error parsing stored user:", e);
+              sessionStorage.removeItem('mockUser');
+            }
+          }
         }
       } catch (error) {
-        console.error("Error checking user:", error);
+        console.error("Error getting session:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    // Check for existing user on mount
-    const storedUser = sessionStorage.getItem('mockUser');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAdmin(true);
-        setLoading(false);
-      } catch (e) {
-        console.error("Error parsing stored user:", e);
-        sessionStorage.removeItem('mockUser');
-        setLoading(false);
-      }
-    } else {
-      setLoading(false);
-    }
-    
-    checkUser();
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      const { user } = await signIn(email, password);
-      setUser(user);
-      setIsAdmin(true);
-      // Store mock user in sessionStorage for persistence
-      sessionStorage.setItem('mockUser', JSON.stringify(user));
-      toast({
-        title: "Success",
-        description: "Logged in successfully!",
+      // Try to sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
-      return true;
+      
+      if (error) {
+        // If Supabase auth fails, fall back to mock auth for development
+        if (email === 'admin@example.com' && password === 'password') {
+          const mockUser = {
+            id: '123',
+            email: 'admin@example.com',
+            role: 'admin',
+            user_metadata: { name: 'Admin User' }
+          };
+          setUser(mockUser);
+          setIsAdmin(true);
+          sessionStorage.setItem('mockUser', JSON.stringify(mockUser));
+          toast({
+            title: "Success",
+            description: "Logged in successfully with mock account!",
+          });
+          return true;
+        } else {
+          throw error;
+        }
+      } else {
+        // Supabase auth succeeded
+        setUser(data.user);
+        setIsAdmin(true);
+        sessionStorage.setItem('mockUser', JSON.stringify(data.user));
+        toast({
+          title: "Success",
+          description: "Logged in successfully!",
+        });
+        return true;
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -87,7 +139,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      await signOut();
+      // Sign out from Supabase
+      await supabase.auth.signOut();
       
       // Clear user state
       setUser(null);
@@ -103,9 +156,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "Success",
         description: "Logged out successfully!",
       });
-      
-      // Force navigation to home page after logout
-      window.location.href = '/';
     } catch (error: any) {
       toast({
         title: "Error",

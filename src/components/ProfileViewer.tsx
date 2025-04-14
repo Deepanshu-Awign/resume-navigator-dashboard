@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useProfiles } from "@/context/ProfileContext";
-import { updateProfileStatus } from "@/services/api";
+import { updateProfileStatus, downloadResume as downloadResumeFile } from "@/services/api";
 import { toast } from "@/components/ui/use-toast";
 import { PDFObject } from "@/components/PDFObject";
 import { Menu, User, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
@@ -54,18 +53,15 @@ const ProfileViewer = () => {
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Handle both profile/:id and profiles/:category routes
   useEffect(() => {
     if (!jobId) {
       navigate("/");
       return;
     }
 
-    // If we're on a profiles/:category route
     if (category && !id) {
       setActiveCategory(category as "all" | "pending" | "shortlisted" | "rejected");
       
-      // Find first profile in the category and navigate to it
       const categoryProfiles = getCategoryProfiles(category);
       if (categoryProfiles.length > 0) {
         navigate(`/profile/${categoryProfiles[0].id}`);
@@ -73,17 +69,14 @@ const ProfileViewer = () => {
     }
   }, [jobId, id, category, navigate]);
   
-  // Get current profile or find by ID
   const profile = id 
     ? profiles.find(p => p.id === id) 
     : filteredProfiles[currentProfileIndex] || null;
   
-  // Get filtered profiles by tab/category
   const pendingProfiles = profiles.filter(p => p.status === "New");
   const shortlistedProfiles = profiles.filter(p => p.status === "Shortlisted");
   const rejectedProfiles = profiles.filter(p => p.status === "Rejected");
   
-  // Helper function to get profiles based on category
   const getCategoryProfiles = (cat: string | undefined) => {
     switch (cat) {
       case "pending": return pendingProfiles;
@@ -93,12 +86,10 @@ const ProfileViewer = () => {
     }
   };
   
-  // Calculate pagination values
   const categoryProfiles = getCategoryProfiles(activeCategory);
   const currentPage = profile ? categoryProfiles.findIndex(p => p.id === profile.id) + 1 : 0;
   const totalPages = categoryProfiles.length;
   
-  // If there's no profile, redirect to home
   useEffect(() => {
     if (!jobId) {
       navigate("/");
@@ -106,12 +97,10 @@ const ProfileViewer = () => {
     }
 
     if (!profile && profiles.length > 0) {
-      // Try to navigate to the first profile of active category
       const catProfiles = getCategoryProfiles(activeCategory);
       if (catProfiles.length > 0) {
         navigate(`/profile/${catProfiles[0].id}`);
       } else if (profiles.length > 0) {
-        // If no profiles in current category, switch to a category with profiles
         if (pendingProfiles.length > 0) {
           setActiveCategory("pending");
           navigate(`/profile/${pendingProfiles[0].id}`);
@@ -123,7 +112,6 @@ const ProfileViewer = () => {
           navigate(`/profile/${rejectedProfiles[0].id}`);
         }
       } else {
-        // No profiles at all, go back to job ID input
         navigate("/");
       }
     }
@@ -147,30 +135,7 @@ const ProfileViewer = () => {
   const downloadResume = () => {
     if (!profile?.pdfUrl) return;
     
-    // Create proper download URL for Google Docs or Google Drive
-    let downloadUrl = profile.pdfUrl;
-    
-    if (downloadUrl.includes('docs.google.com/document')) {
-      // Replace /edit or /preview with /export?format=pdf
-      downloadUrl = downloadUrl.replace(/\/(edit|preview).*$/, '/export?format=pdf');
-    }
-    else if (downloadUrl.includes('drive.google.com/file/d/')) {
-      // Extract file ID from Google Drive URL
-      const fileIdMatch = downloadUrl.match(/\/d\/([^\/]+)\//);
-      if (fileIdMatch && fileIdMatch[1]) {
-        const fileId = fileIdMatch[1];
-        // Format for direct download
-        downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-      }
-    }
-    
-    // Create a temporary anchor element to trigger the download
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `${profile.name}_resume.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadResumeFile(profile);
     
     toast({
       title: "Download started",
@@ -179,12 +144,12 @@ const ProfileViewer = () => {
   };
 
   const handleConfirmAction = async () => {
-    if (!profile || !profile.email || !confirmAction) return;
+    if (!profile || !profile.id || !confirmAction) return;
     
     setLoading(true);
     try {
       const status = confirmAction === "shortlist" ? "Shortlisted" : "Rejected";
-      const success = await updateProfileStatus(profile.email, status);
+      const success = await updateProfileStatus(profile.id, status);
       
       if (success) {
         updateProfileStatusLocally(profile.id, status);
@@ -194,18 +159,15 @@ const ProfileViewer = () => {
         });
         
         if (confirmAction === "shortlist") {
-          // Download PDF
           downloadResume();
         }
         
-        // Find next profile in the current category
         const currentCatProfiles = getCategoryProfiles(activeCategory);
         const filteredProfiles = currentCatProfiles.filter(p => p.id !== profile.id);
         
         if (filteredProfiles.length > 0) {
           navigate(`/profile/${filteredProfiles[0].id}`);
         } else {
-          // If no more profiles in this category, try to find a category with profiles
           if (pendingProfiles.length > 0 && activeCategory !== "pending") {
             setActiveCategory("pending");
             navigate(`/profile/${pendingProfiles[0].id}`);
@@ -216,7 +178,6 @@ const ProfileViewer = () => {
             setActiveCategory("rejected");
             navigate(`/profile/${rejectedProfiles[0].id}`);
           } else {
-            // No more profiles to review in any category
             navigate("/");
           }
         }
@@ -277,7 +238,6 @@ const ProfileViewer = () => {
     const paginationItems = [];
     const currentPage = categoryProfiles.findIndex(p => p.id === profile.id) + 1;
     
-    // Previous button
     paginationItems.push(
       <PaginationItem key="prev">
         <PaginationPrevious 
@@ -287,9 +247,7 @@ const ProfileViewer = () => {
       </PaginationItem>
     );
     
-    // Page numbers logic
     if (totalPages <= 5) {
-      // If 5 or fewer pages, show all
       for (let i = 1; i <= totalPages; i++) {
         paginationItems.push(
           <PaginationItem key={i}>
@@ -303,7 +261,6 @@ const ProfileViewer = () => {
         );
       }
     } else {
-      // Always show first page
       paginationItems.push(
         <PaginationItem key={1}>
           <PaginationLink 
@@ -315,7 +272,6 @@ const ProfileViewer = () => {
         </PaginationItem>
       );
       
-      // Show ellipsis if current page is more than 3
       if (currentPage > 3) {
         paginationItems.push(
           <PaginationItem key="ellipsis1">
@@ -324,11 +280,9 @@ const ProfileViewer = () => {
         );
       }
       
-      // Calculate range around current page
       const start = Math.max(2, currentPage - 1);
       const end = Math.min(totalPages - 1, currentPage + 1);
       
-      // Add range of numbers
       for (let i = start; i <= end; i++) {
         paginationItems.push(
           <PaginationItem key={i}>
@@ -342,7 +296,6 @@ const ProfileViewer = () => {
         );
       }
       
-      // Show ellipsis if current page is less than total-2
       if (currentPage < totalPages - 2) {
         paginationItems.push(
           <PaginationItem key="ellipsis2">
@@ -351,7 +304,6 @@ const ProfileViewer = () => {
         );
       }
       
-      // Always show last page
       paginationItems.push(
         <PaginationItem key={totalPages}>
           <PaginationLink 
@@ -364,7 +316,6 @@ const ProfileViewer = () => {
       );
     }
     
-    // Next button
     paginationItems.push(
       <PaginationItem key="next">
         <PaginationNext 
@@ -377,13 +328,11 @@ const ProfileViewer = () => {
     return <PaginationContent>{paginationItems}</PaginationContent>;
   };
 
-  // Determine button states based on profile status
   const isShortlisted = profile.status === "Shortlisted";
   const isRejected = profile.status === "Rejected";
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 h-14 flex justify-between items-center">
           <div className="flex items-center">
@@ -409,7 +358,6 @@ const ProfileViewer = () => {
         </div>
       </header>
       
-      {/* Tab Navigation - Fixed at the top, not scrollable */}
       <div className="border-b bg-white sticky top-14 z-10">
         <div className="container mx-auto px-4">
           <Tabs 
@@ -435,7 +383,6 @@ const ProfileViewer = () => {
         </div>
       </div>
       
-      {/* Action Buttons (Shortlist/Reject) */}
       <div className="container mx-auto px-4 py-3 flex justify-between">
         <Button 
           variant="destructive" 
@@ -455,14 +402,12 @@ const ProfileViewer = () => {
         </Button>
       </div>
       
-      {/* PDF Viewer */}
       <div className="container mx-auto px-4 flex-1 py-2">
         <div className="bg-gray-200 rounded-md overflow-hidden w-full" style={{ height: 'calc(100vh - 220px)' }}>
           <PDFObject url={profile.pdfUrl} />
         </div>
       </div>
       
-      {/* Pagination */}
       <div className="sticky bottom-0 bg-white border-t shadow-md py-3">
         <div className="container mx-auto px-4">
           <Pagination className="justify-center">
@@ -476,7 +421,6 @@ const ProfileViewer = () => {
         </div>
       </div>
       
-      {/* Confirmation Dialogs */}
       <ConfirmDialog
         isOpen={confirmAction !== null}
         onClose={() => setConfirmAction(null)}

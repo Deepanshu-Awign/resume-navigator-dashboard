@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { ResumeProfile, JobStats } from "@/types";
 import { fetchProfilesFromGoogleSheets } from "@/services/api";
@@ -38,7 +37,6 @@ export const useProfiles = () => {
 };
 
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
-  // Get auth context to detect logout
   const { user } = useAuth();
   
   const [jobId, setJobIdState] = useState<string>("");
@@ -52,14 +50,16 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [profilesCache, setProfilesCache] = useState<Record<string, ResumeProfile[]>>({});
   const [fetchInProgress, setFetchInProgress] = useState<Record<string, boolean>>({});
 
-  // Set jobId both in state and ref to avoid race conditions
   const setJobId = useCallback((id: string) => {
     console.log("Setting jobId:", id);
     jobIdRef.current = id;
     setJobIdState(id);
+    
+    if (id) {
+      localStorage.setItem("jobId", id);
+    }
   }, []);
 
-  // Initialize jobId from localStorage only once on mount
   useEffect(() => {
     const savedJobId = localStorage.getItem("jobId");
     console.log("Initial jobId from localStorage:", savedJobId);
@@ -71,7 +71,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     setInitialLoadDone(true);
   }, [setJobId]);
 
-  // Calculate stats from profiles
   const stats: JobStats = {
     all: profiles.length,
     new: profiles.filter(p => p.status === "New").length,
@@ -79,7 +78,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     rejected: profiles.filter(p => p.status === "Rejected").length
   };
 
-  // Filter profiles based on activeCategory
   const filteredProfiles = profiles.filter(profile => {
     if (activeCategory === "all") return true;
     if (activeCategory === "pending") return profile.status === "New";
@@ -126,7 +124,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       )
     );
     
-    // Also update cache
     if (jobIdRef.current && profilesCache[jobIdRef.current]) {
       setProfilesCache(prevCache => ({
         ...prevCache,
@@ -144,7 +141,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchProfiles = useCallback(async (): Promise<ResumeProfile[]> => {
-    // Use the ref to avoid race conditions
     const currentJobId = jobIdRef.current;
     
     console.log("fetchProfiles called with jobIdRef:", currentJobId);
@@ -154,7 +150,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       return [];
     }
     
-    // If fetch is already in progress for this jobId, return the cached profiles or empty array
     if (fetchInProgress[currentJobId]) {
       console.log("Fetch already in progress for jobId:", currentJobId);
       return profilesCache[currentJobId] || [];
@@ -166,7 +161,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("Fetching profiles for jobId:", currentJobId);
       
-      // Check cache first
       if (profilesCache[currentJobId] && profilesCache[currentJobId].length > 0) {
         console.log("Using cached profiles for jobId:", currentJobId, "count:", profilesCache[currentJobId].length);
         setProfiles(profilesCache[currentJobId]);
@@ -181,16 +175,13 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       console.log("Fetched profiles:", data);
       
       if (data && data.length > 0) {
-        // Update cache with the fetched profiles
         setProfilesCache(prev => ({
           ...prev,
           [currentJobId]: data
         }));
         
-        // Update current profiles in state
         setProfiles(data);
         
-        // Save jobId to localStorage only if profiles were found
         localStorage.setItem("jobId", currentJobId);
         
         return data;
@@ -212,27 +203,26 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [fetchInProgress, profilesCache]);
 
-  // Only load profiles from cache when jobId changes AND initialLoadDone is true
   useEffect(() => {
-    // Skip the initial load when the component first mounts
-    if (!initialLoadDone) return;
-    
-    const loadProfilesFromCache = async () => {
-      if (jobId && profilesCache[jobId] && profilesCache[jobId].length > 0) {
-        console.log("Loading profiles from cache for jobId:", jobId);
-        setProfiles(profilesCache[jobId]);
-      }
-    };
-    
-    if (jobId) {
-      loadProfilesFromCache();
+    if (initialLoadDone && jobId) {
+      console.log("Loading profiles for jobId:", jobId);
+      
+      const loadProfiles = async () => {
+        if (profilesCache[jobId] && profilesCache[jobId].length > 0) {
+          console.log("Setting profiles from cache for jobId:", jobId);
+          setProfiles(profilesCache[jobId]);
+        } else {
+          console.log("Fetching profiles for jobId:", jobId);
+          await fetchProfiles();
+        }
+      };
+      
+      loadProfiles();
     }
-  }, [jobId, initialLoadDone, profilesCache]);
+  }, [jobId, initialLoadDone, fetchProfiles, profilesCache]);
 
-  // Clear everything when user logs out
   useEffect(() => {
     if (!user) {
-      // User logged out, clear state
       console.log("User logged out, clearing all profile state");
       setJobId("");
       setProfiles([]);
@@ -241,7 +231,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, setJobId]);
   
-  // Reset profile index when active category changes
   useEffect(() => {
     resetProfileIndex();
   }, [activeCategory]);
