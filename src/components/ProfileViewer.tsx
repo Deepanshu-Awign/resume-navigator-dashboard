@@ -54,10 +54,10 @@ const ProfileViewer = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   useEffect(() => {
-    if (!jobId) {
-      navigate("/");
-      return;
-    }
+    // if (!jobId) {
+    //   navigate("/");
+    //   return;
+    // }
 
     if (stats.all === 0) {
       navigate("/dashboard");
@@ -107,9 +107,15 @@ const ProfileViewer = () => {
       }
     }
   }, [jobId, id, category, navigate, activeCategory, stats]);
+
+  const categoryMapper = {
+    pending: 'New',
+    shortlisted: 'Shortlisted',
+    rejected: 'Rejected'
+  };
   
   const profile = id 
-    ? profiles.find(p => p.id === id) 
+    ? profiles.filter(p => p.status === categoryMapper[activeCategory]).find(p => p.id === id) 
     : filteredProfiles[currentProfileIndex] || null;
   
   const pendingProfiles = profiles.filter(p => p.status === "New");
@@ -130,10 +136,10 @@ const ProfileViewer = () => {
   const totalPages = categoryProfiles.length;
   
   useEffect(() => {
-    if (!jobId) {
-      navigate("/");
-      return;
-    }
+    // if (!jobId) {
+    //   navigate("/");
+    //   return;
+    // }
 
     if (stats.all === 0) {
       navigate("/dashboard");
