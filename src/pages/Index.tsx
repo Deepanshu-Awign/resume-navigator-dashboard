@@ -30,6 +30,7 @@ const Index = () => {
     fetchProfiles, 
     setActiveCategory, 
     clearProfiles,
+    fetchInProgress
   } = useProfiles();
 
   // Process job ID from URL on component mount
@@ -98,7 +99,10 @@ const Index = () => {
   const processJobId = async (id: string): Promise<boolean> => {
     console.log("=== PROCESS JOB ID ===");
     console.log("Processing job ID:", id);
-    
+     if(fetchInProgress[id.trim()]){
+      console.log("fetchInProgress[id.trim()]:", fetchInProgress[id.trim()])
+      return;
+    }
     if (!id.trim()) {
       console.log("Empty jobId provided");
       toast({
