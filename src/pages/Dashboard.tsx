@@ -10,9 +10,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!jobId) {
-      navigate("/");
-    }
+    // if (!jobId) {
+    //   navigate("/");
+    // }
   }, [jobId, navigate]);
 
   const handleCardClick = (category: "pending" | "shortlisted" | "rejected") => {
