@@ -268,7 +268,8 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     resetProfileIndex,
     updateProfileStatusLocally,
     profilesCache,
-    clearProfiles
+    clearProfiles,
+    fetchInProgress
   };
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
