@@ -18,10 +18,10 @@ const ProfileList = () => {
   } = useProfiles();
 
   useEffect(() => {
-    if (!jobId) {
-      navigate("/");
-      return;
-    }
+    // if (!jobId) {
+    //   navigate("/");
+    //   return;
+    // }
 
     if (category) {
       setActiveCategory(category as any);
