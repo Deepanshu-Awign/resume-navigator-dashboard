@@ -24,6 +24,7 @@ interface ProfileContextType {
   updateProfileStatusLocally: (id: string, status: "Shortlisted" | "Rejected") => void;
   profilesCache: Record<string, ResumeProfile[]>;
   clearProfiles: () => void;
+  fetchInProgress: Record<string, boolean>;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -237,10 +238,10 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     console.log("useEffect for user:", user?.email || "no user");
     if (!user) {
       console.log("User logged out, clearing all profile state");
-      setJobId("");
-      setProfiles([]);
-      setProfilesCache({});
-      localStorage.removeItem("jobId");
+      // setJobId("");
+      // setProfiles([]);
+      // setProfilesCache({});
+      // localStorage.removeItem("jobId");
     }
   }, [user, setJobId]);
   
